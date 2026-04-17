@@ -1,4 +1,5 @@
 mod config;
+mod format;
 mod input;
 mod term;
 
