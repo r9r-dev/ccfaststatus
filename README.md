@@ -1,14 +1,13 @@
 # ccfaststatus
 
-Statusline Claude Code réécrite en Rust natif. Drop-in compatible avec la config
-`statusLine.command` de `~/.claude/settings.json`, byte-for-byte identique à la
-référence Node.js (`~/.claude/statusline.mjs`).
+The Fastest Status Line for Claude Code. Binaire Rust natif, drop-in compatible
+avec la config `statusLine.command` de `~/.claude/settings.json`.
 
 ## Motivation
 
-- Binaire unique, aucune dépendance runtime (libgit2 vendored, énumération processus par FFI native).
-- Startup optimisé pour un refresh rapide (cible long terme : 60 Hz / 16.6 ms).
-- Toute la logique en Rust : zéro `subprocess` (plus d'appel à `git`, `ps`, `stty`).
+Permettre un refresh à la seconde — l'intervalle le plus court autorisé par
+Claude Code — avec toute la logique en Rust : zéro `subprocess` (pas d'appel à
+`git`, `ps`, `stty`), libgit2 vendored, énumération processus par FFI native.
 
 ## Perf observée
 
@@ -21,21 +20,23 @@ référence Node.js (`~/.claude/statusline.mjs`).
 
 Mesures réalisées via `zsh/datetime` (`EPOCHREALTIME`) sur Apple Silicon. Le chiffre pure binaire est mesuré en fournissant le payload sur stdin directement, sans overhead de shell pipe (`cat file | binary` ajoute ~2.5 ms supplémentaires).
 
-## Build
+## Installation
+
+### Homebrew (macOS arm64)
+
+```sh
+brew install r9r-dev/tap/ccfaststatus
+```
+
+### Depuis les sources
 
 ```sh
 cargo build --release
+ln -sf "$PWD/target/release/ccfaststatus" ~/.local/bin/ccfaststatus
 ```
 
 Le premier build compile `libgit2` statiquement (~60-120 s). Les builds suivants
 sont quasi-instantanés (LTO `fat` + `codegen-units = 1`).
-
-## Installation
-
-```sh
-# Lier le binaire dans un dossier du PATH.
-ln -sf "$PWD/target/release/ccfaststatus" ~/.local/bin/ccfaststatus
-```
 
 Puis dans `~/.claude/settings.json` :
 
@@ -57,7 +58,7 @@ cargo test
 
 42 tests au total :
 - 34 tests unitaires (formatters, ANSI, segments, etc.)
-- 8 tests golden qui comparent byte-à-byte contre le script JS de référence, avec masquage des parties dépendant du temps (HH:MM, durées, time_left, compteurs git)
+- 8 tests golden qui comparent la sortie ANSI à des fixtures figées, avec masquage des parties dépendant du temps (HH:MM, durées, time_left, compteurs git)
 
 Fixtures golden (`tests/fixtures/*.json` + `.expected`) :
 `minimal`, `with_git`, `rate_limits`, `narrow_80cols`, `cost_only`,
@@ -78,12 +79,6 @@ src/
                     Linux : readdir /proc/*/comm)
   git.rs        -- git2 + cache binaire bincode (TTL 5 s)
 tests/
-  golden.rs     -- snapshot tests vs JS reference
+  golden.rs     -- snapshot tests contre fixtures figées
   fixtures/     -- JSON payloads + .expected captures
 ```
-
-## Fidélité
-
-La parité byte-for-byte avec `~/.claude/statusline.mjs` est vérifiée par `cargo
-test --test golden` sur huit fixtures : `minimal`, `with_git`, `rate_limits`,
-`narrow_80cols`, `cost_only`, `no_workspace`, `worktree`, `narrow_version_drop`.

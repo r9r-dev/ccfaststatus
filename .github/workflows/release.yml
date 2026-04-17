@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build macOS arm64 and publish Release
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Cache cargo registry + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-release-
+
+      - name: Build release
+        run: cargo build --release --target aarch64-apple-darwin
+
+      - name: Package tarball
+        id: package
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          TARGET="aarch64-apple-darwin"
+          DIST="ccfaststatus-${VERSION}-${TARGET}"
+          mkdir -p "dist/${DIST}"
+          cp "target/${TARGET}/release/ccfaststatus" "dist/${DIST}/"
+          cp README.md LICENSE "dist/${DIST}/"
+          (cd dist && tar -czf "${DIST}.tar.gz" "${DIST}")
+          (cd dist && shasum -a 256 "${DIST}.tar.gz" > "${DIST}.tar.gz.sha256")
+          cat "dist/${DIST}.tar.gz.sha256"
+          echo "asset=dist/${DIST}.tar.gz" >> "$GITHUB_OUTPUT"
+          echo "asset_sha=dist/${DIST}.tar.gz.sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ steps.package.outputs.asset }}
+            ${{ steps.package.outputs.asset_sha }}
+          generate_release_notes: true

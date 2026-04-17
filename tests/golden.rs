@@ -1,8 +1,7 @@
-//! Golden snapshot tests: compare ccfaststatus output against captured JS reference output.
+//! Golden snapshot tests: compare ccfaststatus output against frozen fixtures.
 //!
 //! Time-sensitive substrings (HH:MM, duration, time_left, session count) are masked
-//! before comparison. To regenerate expected files, set UPDATE_GOLDEN=1 (captures
-//! the Rust output; the JS reference must still be used as ground truth).
+//! before comparison. To regenerate expected files, set UPDATE_GOLDEN=1.
 
 use regex::Regex;
 use std::io::Write;

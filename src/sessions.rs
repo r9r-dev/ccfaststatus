@@ -5,7 +5,6 @@
 
 /// Count processes whose exec_path basename is "claude".
 /// Native equivalent of `ps -Ao comm | grep '^claude$'`.
-/// Reference JS: getActiveSessions (statusline.mjs:163)
 pub fn count() -> usize {
     imp::count()
 }

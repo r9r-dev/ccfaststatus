@@ -2,6 +2,9 @@
 name = "ccfaststatus"
 version = "0.1.0"
 edition = "2021"
+description = "The Fastest Status Line for Claude Code, développée en Rust"
+repository = "https://github.com/r9r-dev/ccfaststatus"
+license = "WTFPL"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

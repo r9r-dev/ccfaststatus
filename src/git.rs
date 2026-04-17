@@ -125,7 +125,6 @@ fn collect_fresh(cwd: &Path) -> GitInfo {
 }
 
 /// Return git info for `cwd`, using the file cache if still fresh.
-/// Reference JS: getGitInfo (statusline.mjs:173)
 pub fn info(cwd: &str) -> GitInfo {
     if let Some(cached) = read_cache(GIT_CACHE_FILE, cwd, GIT_CACHE_TTL_MS) {
         return cached;

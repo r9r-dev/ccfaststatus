@@ -287,7 +287,6 @@ fn main() {
 
 /// Shorten the model display name: "Opus 4.7 (1M context)" → "Opus".
 /// Strips "(...)" then a trailing " N" or " N.N" version suffix.
-/// Reference JS: statusline.mjs:215 — `.replace(/\s*\(.*\)/, '').replace(/\s+\d+(\.\d+)?$/, '')`
 fn shorten_model(raw: &str) -> String {
     let stripped_parens = match raw.find('(') {
         Some(pos) => raw[..pos].trim_end().to_string(),

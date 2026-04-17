@@ -3,7 +3,6 @@ use crate::term::{fgc, RST};
 
 /// Format a duration in milliseconds as `"Xh"`, `"XhYm"`, or `"XdYh"`.
 /// Returns `""` if `ms <= 0`.
-/// Reference JS: fmtTime (statusline.mjs:61)
 pub fn fmt_time(ms: i64) -> String {
     if ms <= 0 {
         return String::new();
@@ -22,7 +21,6 @@ pub fn fmt_time(ms: i64) -> String {
 
 /// Format a session duration as `"XhYYm"`, `"XmYYs"`, or `"Xs"`.
 /// Returns `""` if `ms == 0` (empty session).
-/// Reference JS: fmtDuration (statusline.mjs:69)
 pub fn fmt_duration(ms: u64) -> String {
     if ms == 0 {
         return String::new();
@@ -41,7 +39,6 @@ pub fn fmt_duration(ms: u64) -> String {
 
 /// Format a token count as `"1.2M"`, `"42k"`, or `"999"`.
 /// Zero returns `"0"` (not empty).
-/// Reference JS: fmtTokens (statusline.mjs:79)
 pub fn fmt_tokens(n: u64) -> String {
     if n == 0 {
         return "0".to_string();
@@ -57,7 +54,6 @@ pub fn fmt_tokens(n: u64) -> String {
 }
 
 /// Simple box-drawing bar ("━━━━━" filled, "─────" empty).
-/// Reference JS: miniBar (statusline.mjs:87)
 #[allow(dead_code)]
 pub fn mini_bar(pct: f64, empty_rgb: Rgb) -> String {
     let filled = ((pct / 100.0) * BAR_WIDTH as f64).round() as usize;
@@ -76,9 +72,8 @@ pub fn mini_bar(pct: f64, empty_rgb: Rgb) -> String {
 }
 
 /// Vertical braille bar: 8 fill levels per cell, fixed character width.
-/// Reference JS: contextBar (statusline.mjs:93)
 pub fn context_bar(pct: f64, width: usize, empty_rgb: Rgb) -> String {
-    // Fill pattern order (bottom → top, left → right alternating per the JS source).
+    // Fill pattern order (bottom → top, left → right alternating).
     const DOTS: [u16; 8] = [0x40, 0x80, 0x04, 0x20, 0x02, 0x10, 0x01, 0x08];
     let steps = DOTS.len();
     let total = ((pct / 100.0) * (width * steps) as f64).round() as isize;

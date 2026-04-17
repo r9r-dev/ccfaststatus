@@ -10,7 +10,6 @@ pub struct Segment {
 
 /// Render consecutive segments with powerline separators, re-injecting each segment's
 /// bg after internal RSTs (so text that uses RST still ends up drawn on the segment bg).
-/// Reference JS: renderSegments (statusline.mjs:132)
 fn render(segments: &[Segment]) -> String {
     let mut line = String::with_capacity(512);
     for (i, seg) in segments.iter().enumerate() {
@@ -44,7 +43,6 @@ fn render(segments: &[Segment]) -> String {
 /// until the stripped width fits in `cols`. `suffix` is appended after all segments and
 /// counts toward the width budget; if it still doesn't fit with only 1 segment left,
 /// returns what we have.
-/// Reference JS: buildPowerline (statusline.mjs:114)
 pub fn build_powerline(segments: Vec<Segment>, suffix: &str, cols: usize) -> String {
     let mut candidates = segments;
     loop {
@@ -61,10 +59,8 @@ pub fn build_powerline(segments: Vec<Segment>, suffix: &str, cols: usize) -> Str
         }
 
         // Remove the segment with the largest priority (least important).
-        // JS reference uses strict `>` which keeps the earliest-index tie. In Rust,
-        // iterating enumerate().rev() reverses the order, and max_by_key's "returns
-        // last on ties" rule then picks the element that is last in the reversed
-        // order — i.e., first in the original order.
+        // Tie-break: keep the earliest index. enumerate().rev() + max_by_key's
+        // "returns last on ties" picks the element first in the original order.
         let worst_idx = candidates
             .iter()
             .enumerate()
