@@ -21,9 +21,12 @@ fn normalize(s: &str) -> String {
     // HH:MM — the heart segment clock.
     let re_hhmm = Regex::new(r"\b\d{2}:\d{2}\b").unwrap();
     // Duration / time_left compound formats.
-    let re_dhm = Regex::new(r"\b\d+d\d+h\b").unwrap();
-    let re_hm = Regex::new(r"\b\d+h\d{1,2}m\b").unwrap();
-    let re_ms = Regex::new(r"\b\d+m\d{2}s\b").unwrap();
+    // NOTE: no leading `\b` — ANSI escape sequences end with `m` (a word char), so e.g.
+    // `...255m26921d7h[0m` has no word boundary between `m` and `2`. Dropping the leading
+    // `\b` lets the mask fire; the greedy `\d+` still only grabs the contiguous digit run.
+    let re_dhm = Regex::new(r"\d+d\d+h\b").unwrap();
+    let re_hm = Regex::new(r"\d+h\d{1,2}m\b").unwrap();
+    let re_ms = Regex::new(r"\d+m\d{2}s\b").unwrap();
     // Simple formats. No lookaround — the `regex` crate does not support it.
     // Safe because ANSI color escapes are byte-identical between expected and actual,
     // so any spurious match (e.g., the `m` in `255m`) normalises identically on both sides.
