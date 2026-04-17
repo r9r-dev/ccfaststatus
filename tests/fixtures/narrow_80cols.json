@@ -1,0 +1,7 @@
+{
+  "model": {"display_name": "Opus 4.7 (1M context)"},
+  "version": "2.0.1",
+  "workspace": {"current_dir": "/Users/rlamour/Developer/code/perso/ccfaststatus"},
+  "context_window": {"used_percentage": 42.3, "context_window_size": 1000000, "current_usage": {"input_tokens": 100000}},
+  "cost": {"total_cost_usd": 0.42, "total_duration_ms": 600000}
+}

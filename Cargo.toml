@@ -12,6 +12,9 @@ sysinfo = { version = "0.32", default-features = false, features = ["system"] }
 terminal_size = "0.4"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 
+[dev-dependencies]
+regex = "1"
+
 [profile.release]
 lto = "fat"
 codegen-units = 1
