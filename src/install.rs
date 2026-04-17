@@ -60,6 +60,34 @@ pub fn update_settings(mut settings: Value, interval: u32) -> Value {
     settings
 }
 
+pub fn parse_interval(raw: &str, default: u32) -> Result<u32, String> {
+    let t = raw.trim();
+    if t.is_empty() {
+        return Ok(default);
+    }
+    t.parse::<u32>()
+        .map_err(|_| format!("not a positive integer: {}", raw.trim()))
+        .and_then(|n| if n == 0 { Err("must be > 0".to_string()) } else { Ok(n) })
+}
+
+fn prompt_interval(default: u32) -> u32 {
+    use std::io::{stdin, stdout, BufRead, Write};
+    let stdin = stdin();
+    let mut out = stdout();
+    loop {
+        print!("Intervalle de rafraîchissement en secondes [{}]: ", default);
+        let _ = out.flush();
+        let mut line = String::new();
+        if stdin.lock().read_line(&mut line).is_err() {
+            return default;
+        }
+        match parse_interval(&line, default) {
+            Ok(n) => return n,
+            Err(msg) => eprintln!("  ✗ {}", msg),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -167,5 +195,30 @@ mod tests {
         let s = std::fs::read_to_string(&tmp).unwrap();
         assert!(s.contains("  \"b\""));   // 2 espaces d'indent
         let _ = std::fs::remove_file(&tmp);
+    }
+
+    #[test]
+    fn parse_interval_uses_default_on_empty() {
+        assert_eq!(parse_interval("", 1).unwrap(), 1);
+        assert_eq!(parse_interval("\n", 3).unwrap(), 3);
+        assert_eq!(parse_interval("   ", 5).unwrap(), 5);
+    }
+
+    #[test]
+    fn parse_interval_accepts_positive_int() {
+        assert_eq!(parse_interval("2", 1).unwrap(), 2);
+        assert_eq!(parse_interval("  42  \n", 1).unwrap(), 42);
+    }
+
+    #[test]
+    fn parse_interval_rejects_zero_and_negative() {
+        assert!(parse_interval("0", 1).is_err());
+        assert!(parse_interval("-3", 1).is_err());
+    }
+
+    #[test]
+    fn parse_interval_rejects_non_numeric() {
+        assert!(parse_interval("abc", 1).is_err());
+        assert!(parse_interval("1.5", 1).is_err());
     }
 }
