@@ -1,1 +1,5 @@
-fn main() { println!("TODO"); }
+mod input;
+
+fn main() {
+    println!("TODO");
+}
