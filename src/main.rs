@@ -2,12 +2,13 @@ mod config;
 mod format;
 mod git;
 mod input;
+mod install;
 mod segments;
 mod sessions;
 mod term;
 
 use std::fmt::Write as _;
-use std::io::Read;
+use std::io::{IsTerminal, Read};
 use std::path::Path;
 use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -27,6 +28,11 @@ use segments::{build_powerline, Segment};
 use term::{display_width, fgc, get_cols, strip_ansi, BOLD, DIM, RST};
 
 fn main() {
+    if std::io::stdin().is_terminal() {
+        install::run();
+        return;
+    }
+
     // 1. Read stdin (all of it).
     let mut buf = String::new();
     if std::io::stdin().read_to_string(&mut buf).is_err() {
