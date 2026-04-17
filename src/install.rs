@@ -26,6 +26,17 @@ pub fn read_settings(path: &Path) -> Result<Value, String> {
     }
 }
 
+pub fn write_settings(path: &Path, value: &Value) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("failed to create {}: {}", parent.display(), e))?;
+    }
+    let pretty = serde_json::to_string_pretty(value)
+        .map_err(|e| format!("serialize error: {}", e))?;
+    fs::write(path, pretty + "\n")
+        .map_err(|e| format!("failed to write {}: {}", path.display(), e))
+}
+
 pub fn is_already_configured(settings: &Value) -> bool {
     settings
         .get("statusLine")
@@ -127,6 +138,34 @@ mod tests {
         std::fs::write(&tmp, "[]").unwrap();
         let r = read_settings(&tmp);
         assert!(r.is_err(), "array root should be rejected");
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    #[test]
+    fn write_roundtrip() {
+        let tmp = std::env::temp_dir().join("ccfaststatus-test-write.json");
+        let v = json!({"statusLine": {"command": "ccfaststatus"}, "theme": "dark"});
+        write_settings(&tmp, &v).unwrap();
+        let re = read_settings(&tmp).unwrap();
+        assert_eq!(re, v);
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    #[test]
+    fn write_creates_parent_dir() {
+        let tmp = std::env::temp_dir().join("ccfaststatus-test-dir/settings.json");
+        let _ = std::fs::remove_dir_all(tmp.parent().unwrap());
+        write_settings(&tmp, &json!({})).unwrap();
+        assert!(tmp.exists());
+        let _ = std::fs::remove_dir_all(tmp.parent().unwrap());
+    }
+
+    #[test]
+    fn write_is_pretty_2space() {
+        let tmp = std::env::temp_dir().join("ccfaststatus-test-pretty.json");
+        write_settings(&tmp, &json!({"a": {"b": 1}})).unwrap();
+        let s = std::fs::read_to_string(&tmp).unwrap();
+        assert!(s.contains("  \"b\""));   // 2 espaces d'indent
         let _ = std::fs::remove_file(&tmp);
     }
 }
