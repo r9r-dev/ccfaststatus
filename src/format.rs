@@ -44,7 +44,8 @@ pub fn fmt_tokens(n: u64) -> String {
         return "0".to_string();
     }
     if n >= 1_000_000 {
-        return format!("{:.1}M", n as f64 / 1e6);
+        let rounded = (n as f64 / 1e5).round() / 10.0;
+        return format!("{:.1}M", rounded);
     }
     if n >= 1_000 {
         return format!("{}k", (n as f64 / 1000.0).round() as u64);
@@ -114,5 +115,10 @@ mod tests {
     fn fmt_tokens_millions() {
         assert_eq!(fmt_tokens(1_200_000), "1.2M");
         assert_eq!(fmt_tokens(3_456_789), "3.5M");
+        // Regression: ensure half-away-from-zero tie-break matches JS toFixed(1).
+        assert_eq!(fmt_tokens(1_250_000), "1.3M", "1.25 must round up like JS toFixed");
+        assert_eq!(fmt_tokens(2_250_000), "2.3M", "2.25 must round up like JS toFixed");
+        assert_eq!(fmt_tokens(1_350_000), "1.4M");
+        assert_eq!(fmt_tokens(3_500_000), "3.5M");
     }
 }
