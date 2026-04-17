@@ -1,7 +1,7 @@
 use crate::config::{Rgb, PW};
 use crate::term::{bgc, display_width, fgc, strip_ansi, RST};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Segment {
     pub text: String, // may contain ANSI escapes (notably RST)
     pub bg: Rgb,
@@ -61,9 +61,14 @@ pub fn build_powerline(segments: Vec<Segment>, suffix: &str, cols: usize) -> Str
         }
 
         // Remove the segment with the largest priority (least important).
+        // JS reference uses strict `>` which keeps the earliest-index tie. In Rust,
+        // iterating enumerate().rev() reverses the order, and max_by_key's "returns
+        // last on ties" rule then picks the element that is last in the reversed
+        // order — i.e., first in the original order.
         let worst_idx = candidates
             .iter()
             .enumerate()
+            .rev()
             .max_by_key(|(_, s)| s.priority)
             .map(|(i, _)| i)
             .unwrap_or(0);
@@ -114,5 +119,26 @@ mod tests {
         let segments = vec![seg(" X ", (10, 10, 10), 7)];
         let out = build_powerline(segments, "", 2);
         assert!(out.contains("X"));
+    }
+
+    #[test]
+    fn truncation_tie_break_keeps_earliest() {
+        // Two segments with the same (largest) priority. JS drops the earliest-index first;
+        // we must match. Here A, B, C, D all have the same priority 7 except B which is p1.
+        // With narrow cols, we should drop A (first in insertion order among the max-priority
+        // segments) before C or D.
+        let segments = vec![
+            seg(" A ", (10, 10, 10), 7),
+            seg(" B ", (20, 20, 20), 1),
+            seg(" C ", (30, 30, 30), 7),
+            seg(" D ", (40, 40, 40), 7),
+        ];
+        // Render full width to get the baseline, then shrink until exactly one p7 is gone.
+        // With cols chosen so that one segment must drop, A must be the one removed.
+        // 4 segments of 3 visible chars + 1 triangle each = 16 chars total; cols=14 forces
+        // exactly one drop (3 segments = 12 chars fits, 4 segments = 16 doesn't).
+        let out = build_powerline(segments, "", 14);
+        assert!(!out.contains(" A "), "A (earliest p7) must be dropped first");
+        assert!(out.contains(" B "), "B (p1) must survive");
     }
 }
