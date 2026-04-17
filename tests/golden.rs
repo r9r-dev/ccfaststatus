@@ -126,3 +126,29 @@ fn narrow_80cols() {
     let _ = std::fs::remove_file("/tmp/.claude-statusline-git-cache.bin");
     check("narrow_80cols", 80);
 }
+
+#[test]
+fn cost_only() {
+    check("cost_only", 200);
+}
+
+#[test]
+fn no_workspace() {
+    check("no_workspace", 200);
+}
+
+#[test]
+fn worktree() {
+    let _ = std::fs::remove_file("/tmp/.claude-statusline-git-cache.bin");
+    check("worktree", 200);
+}
+
+#[test]
+fn narrow_version_drop() {
+    let _ = std::fs::remove_file("/tmp/.claude-statusline-git-cache.bin");
+    // COLUMNS=30: forces the version-suffix fallback rebuild. Calibrated so only the
+    // model segment remains after the inner buildPowerline can't fit model+version,
+    // then the outer rebuild drops version and emits model alone. Reported value
+    // (from JS-vs-Rust match scan) — not 100 as originally suggested.
+    check("narrow_version_drop", 30);
+}

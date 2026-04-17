@@ -1,0 +1,6 @@
+{
+  "model": {"display_name": "Opus 4.7 (1M context)"},
+  "version": "2.0.1",
+  "workspace": {"current_dir": "/Users/rlamour/Developer/code/perso/ccfaststatus", "git_worktree": true},
+  "context_window": {"used_percentage": 30, "context_window_size": 1000000}
+}
