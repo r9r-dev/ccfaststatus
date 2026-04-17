@@ -1,5 +1,5 @@
 use crate::config::{GIT_CACHE_FILE, GIT_CACHE_TTL_MS};
-use git2::{Repository, Status, StatusOptions};
+use git2::{ErrorCode, Repository, Status, StatusOptions};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
@@ -63,6 +63,18 @@ fn collect_fresh(cwd: &Path) -> GitInfo {
     // Branch name
     info.branch = match repo.head() {
         Ok(h) => h.shorthand().unwrap_or("HEAD").to_string(),
+        Err(e) if e.code() == ErrorCode::UnbornBranch => {
+            // Unborn HEAD (freshly init'd repo, no commits yet).
+            // JS reads `.git/HEAD` via `git branch --show-current`; we resolve the
+            // symbolic target of HEAD itself (typically "refs/heads/main").
+            repo.find_reference("HEAD")
+                .ok()
+                .and_then(|r| {
+                    r.symbolic_target()
+                        .map(|t| t.trim_start_matches("refs/heads/").to_string())
+                })
+                .unwrap_or_else(|| "HEAD".to_string())
+        }
         Err(_) => "HEAD".to_string(),
     };
 
