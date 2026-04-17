@@ -47,6 +47,11 @@ fn main() {
         }
     };
 
+    let cols = get_cols();
+    println!("{}", render(data, cols));
+}
+
+pub(crate) fn render(data: ClaudeInput, cols: usize) -> String {
     // 2. Resolve cwd, then start parallel collectors.
     let cwd = data
         .workspace
@@ -58,7 +63,6 @@ fn main() {
     let cwd_for_git = cwd.clone();
     let git_handle = thread::spawn(move || git::info(&cwd_for_git));
     let sessions_handle = thread::spawn(sessions::count);
-    let cols = get_cols();
 
     let git_info = git_handle.join().unwrap_or_default();
     let sessions_count = sessions_handle.join().unwrap_or(0);
@@ -288,7 +292,7 @@ fn main() {
         output = build_powerline(segments, "", cols);
     }
 
-    println!("{}", output);
+    output
 }
 
 /// Shorten the model display name: "Opus 4.7 (1M context)" → "Opus".
