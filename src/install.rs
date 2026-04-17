@@ -88,6 +88,13 @@ fn prompt_interval(default: u32) -> u32 {
     }
 }
 
+pub fn preview() -> String {
+    use crate::input::ClaudeInput;
+    use crate::term::get_cols;
+    let data: ClaudeInput = serde_json::from_str("{}").expect("{} is valid");
+    crate::render(data, get_cols())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -220,5 +227,12 @@ mod tests {
     fn parse_interval_rejects_non_numeric() {
         assert!(parse_interval("abc", 1).is_err());
         assert!(parse_interval("1.5", 1).is_err());
+    }
+
+    #[test]
+    fn preview_produces_non_empty_output() {
+        let p = preview();
+        assert!(!p.is_empty());
+        assert!(p.contains("\x1b["));  // ANSI escape présent
     }
 }
