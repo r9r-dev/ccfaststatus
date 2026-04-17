@@ -16,6 +16,7 @@ pub fn bgc(out: &mut String, (r, g, b): Rgb) {
 }
 
 /// Convenience: returns the foreground color escape as an owned `String`.
+#[allow(dead_code)]
 pub fn fgc_s(rgb: Rgb) -> String {
     let mut s = String::with_capacity(20);
     fgc(&mut s, rgb);
@@ -23,6 +24,7 @@ pub fn fgc_s(rgb: Rgb) -> String {
 }
 
 /// Convenience: returns the background color escape as an owned `String`.
+#[allow(dead_code)]
 pub fn bgc_s(rgb: Rgb) -> String {
     let mut s = String::with_capacity(20);
     bgc(&mut s, rgb);

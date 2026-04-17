@@ -30,11 +30,15 @@ fn main() {
     // 1. Read stdin (all of it).
     let mut buf = String::new();
     if std::io::stdin().read_to_string(&mut buf).is_err() {
+        eprintln!("ccfaststatus: failed to read stdin");
         return;
     }
     let data: ClaudeInput = match serde_json::from_str(&buf) {
         Ok(d) => d,
-        Err(_) => return,
+        Err(e) => {
+            eprintln!("ccfaststatus: invalid stdin json: {}", e);
+            return;
+        }
     };
 
     // 2. Resolve cwd, then start parallel collectors.

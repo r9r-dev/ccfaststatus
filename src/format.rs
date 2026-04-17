@@ -58,6 +58,7 @@ pub fn fmt_tokens(n: u64) -> String {
 
 /// Simple box-drawing bar ("━━━━━" filled, "─────" empty).
 /// Reference JS: miniBar (statusline.mjs:87)
+#[allow(dead_code)]
 pub fn mini_bar(pct: f64, empty_rgb: Rgb) -> String {
     let filled = ((pct / 100.0) * BAR_WIDTH as f64).round() as usize;
     let filled = filled.min(BAR_WIDTH);
