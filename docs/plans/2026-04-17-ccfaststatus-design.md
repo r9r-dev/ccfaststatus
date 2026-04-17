@@ -21,8 +21,10 @@ src/
   config.rs    -- constantes: palette couleurs, icônes, BAR_WIDTH, TTL, chemin cache
   term.rs      -- ANSI (fgc/bgc/RST/BOLD/DIM), strip_ansi, get_cols
   format.rs    -- fmt_time, fmt_duration, fmt_tokens, mini_bar, context_bar
-  git.rs       -- GitInfo, cache binaire, appels git2
-  sessions.rs  -- comptage processus `claude` via sysinfo
+  git.rs       -- GitInfo, cache binaire bincode, appels git2
+  sessions.rs  -- comptage processus `claude` via FFI natif
+                  (macOS : `libc::proc_listpids` + `sysctl KERN_PROCARGS2`
+                   Linux : readdir `/proc/*/comm`)
   segments.rs  -- Segment, build_powerline, render, troncature par priorité
 tests/
   golden.rs    -- fixtures JSON → sortie ANSI attendue (snapshot byte-à-byte)
@@ -53,7 +55,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 bincode = "1"
 git2 = { version = "0.19", default-features = false, features = ["vendored-libgit2"] }
-sysinfo = { version = "0.32", default-features = false, features = ["system"] }
+libc = "0.2"
 terminal_size = "0.4"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 
@@ -67,8 +69,8 @@ panic = "abort"
 
 Justifications :
 
-- `git2` en vendored + `default-features = false` → libgit2 statique, pas de SSH/HTTPS inutile, binaire portable ~2–3 Mo.
-- `sysinfo` sans features disque/réseau, uniquement `system`.
+- `git2` en vendored + `default-features = false` → libgit2 statique, pas de SSH/HTTPS inutile, binaire portable ~1 Mo après `strip` + LTO.
+- `libc` pour l'énumération de processus par FFI directe (évite les ~5 ms de dyld liés à `IOKit.framework` qu'embarquait `sysinfo`).
 - `chrono` sans `serde`, `wasm`, locales (on n'affiche que HH:MM).
 - `bincode` pour le cache binaire (parse ~10× plus rapide que serde_json).
 - **Pas de `anyhow`** : `Result<_, Box<dyn Error>>` en surface, `unwrap_or_default` ailleurs. Le JS fait `catch {}` partout — on dégrade pareil.
@@ -77,14 +79,18 @@ Justifications :
 
 Mesurés au cas par cas, one-shot, cache git chaud :
 
-| Étape | Budget |
-|-------|--------|
-| Spawn + runtime init (macOS) | ~5 ms |
-| Lecture stdin + parse JSON | ~2 ms |
-| Collecte parallèle (git cache hit + sessions + cols) | ~1 ms |
-| Render + write stdout | < 1 ms |
-| **Total cache chaud** | **~8 ms** |
-| Git cache miss (libgit2 status repo moyen) | +10–15 ms |
+| Étape | Budget estimé | Mesuré |
+|-------|---------------|--------|
+| Spawn + runtime init (macOS) | ~5 ms | inclus dans total |
+| Lecture stdin + parse JSON | ~2 ms | |
+| Collecte parallèle | ~1 ms | |
+| Render + write stdout | < 1 ms | |
+| **Total cache chaud (médian)** | **~8 ms** | **~9.75 ms** |
+| Git cache miss | 10–15 ms | ~18 ms |
+
+Post-optimisations (commit 4e60cb9) : replacement de sysinfo par un scan
+natif (`libc::proc_listpids` + `sysctl KERN_PROCARGS2` sur macOS, readdir
+`/proc` sur Linux). Élimine IOKit.framework de la liste dyld et gagne ~5 ms.
 
 La cible 16.6 ms (60 Hz) est atteignable cache chaud. Cache froid on dépasse — acceptable car le cache a un TTL de 5 s, donc 1 refresh sur ~300 à 60 Hz paie le coût.
 
@@ -96,7 +102,7 @@ Optimisations appliquées :
 2. **Cache binaire** (`bincode`) au lieu de JSON. Fichier renommé `/tmp/.claude-statusline-git-cache.bin` pour éviter toute confusion avec l'ancien format JSON.
 3. **Pré-allocation** : `String::with_capacity(512)` pour la ligne finale.
 4. **Pas de `format!`** dans les hot paths → `write!` direct dans un `String` buffer.
-5. **sysinfo minimal** : `refresh_processes(ProcessesToUpdate::All, false)`, pas de CPU/mémoire.
+5. **Énumération processus FFI native** : `libc::proc_listpids` + `sysctl KERN_PROCARGS2` sur macOS, readdir `/proc/*/comm` sur Linux. Pas de dépendance sysinfo.
 
 ## Fidélité vs script JS
 
@@ -113,13 +119,16 @@ Optimisations appliquées :
 
 **Écarts assumés** :
 
-1. Comptage des sessions actives via `sysinfo` (syscalls natifs) au lieu de `ps -Ao comm`. Résultat identique tant que l'exécutable Claude Code s'appelle `claude`.
+1. Comptage des sessions actives via un scan natif (`sysctl KERN_PROCARGS2`
+   sur macOS, `/proc/*/comm` sur Linux). Résultat identique à `ps -Ao comm`
+   utilisé par le JS (même source de données : l'`argv[0]` du process, pas
+   le basename du binaire résolu).
 2. Terminal width via `terminal_size::terminal_size()` au lieu de `stty -f /dev/tty size`. Fallback identique sur `$COLUMNS` puis `120`.
 3. Format du cache binaire (bincode) au lieu de JSON. Comportement applicatif inchangé.
 
 ## Gestion des erreurs
 
-- Stratégie "best effort" : toute erreur de collecte (git absent, sysinfo échoue, cache corrompu) → donnée omise, autres segments rendus normalement.
+- Stratégie "best effort" : toute erreur de collecte (git absent, énumération processus échoue, cache corrompu) → donnée omise, autres segments rendus normalement.
 - Jamais de panic remontée à l'utilisateur. `main` retourne `Result` mais les helpers retournent des `Option`.
 - Cache corrompu = ignoré + réécrit au prochain cache miss.
 
@@ -131,14 +140,19 @@ Trois niveaux, tous dans `cargo test` :
 
 2. **Segments** (`tests/segments.rs`) — vecteurs synthétiques, vérifie que `build_powerline` retire les segments dans l'ordre p7 → p6 → ... → p1 quand `cols` diminue.
 
-3. **Golden** (`tests/golden.rs`) — fixtures `tests/fixtures/*.json` extraites depuis des runs réels du script JS, chaque fixture a un `.expected` contenant la sortie ANSI byte-à-byte. Régénération par `UPDATE_GOLDEN=1 cargo test`. Fixtures couvrant au minimum :
-   - `minimal.json` — pas de git, pas de rate_limits
-   - `with_git.json` — git repo avec ahead/modified
-   - `rate_limits.json` — 5h + 7d affichés
-   - `narrow_80cols.json` — troncature forcée
-   - `worktree.json` — indicateur worktree
+3. **Golden** (`tests/golden.rs`) — fixtures `tests/fixtures/*.json` extraites depuis des runs réels du script JS, chaque fixture a un `.expected` contenant la sortie ANSI byte-à-byte. Régénération par `UPDATE_GOLDEN=1 cargo test`.
 
-**Hors tests** : intégration git2 et sysinfo (I/O externe, vérif manuelle).
+Fixtures (`tests/fixtures/*.json` + `.expected`) :
+- `minimal.json` — payload minimal
+- `with_git.json` — repo avec modifications
+- `rate_limits.json` — 5h + 7d affichés
+- `narrow_80cols.json` — troncature à 80 cols
+- `cost_only.json` — segment coût (pas de rate_limits)
+- `no_workspace.json` — fallback `data.cwd`
+- `worktree.json` — indicateur worktree
+- `narrow_version_drop.json` — fallback sans suffixe version (cols=30)
+
+**Hors tests** : intégration git2 et énumération processus (I/O externe, vérif manuelle).
 
 ## Extensions futures (hors scope v1)
 
