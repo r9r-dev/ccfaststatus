@@ -53,6 +53,11 @@ fn main() {
 }
 
 pub(crate) fn render(data: ClaudeInput, cols: usize) -> String {
+    render_with(data, cols, settings::Settings::load())
+}
+
+pub(crate) fn render_with(data: ClaudeInput, cols: usize, settings: settings::Settings) -> String {
+    let flags = &settings.segments;
     // 2. Resolve cwd, then start parallel collectors.
     let cwd = data
         .workspace
@@ -108,56 +113,62 @@ pub(crate) fn render(data: ClaudeInput, cols: usize) -> String {
     let mut segments: Vec<Segment> = Vec::with_capacity(8);
 
     // 4.0 Time segment (heart + HH:MM + sessions + duration) — priority 5.
-    let now = Local::now();
-    let dur = fmt_duration(session_ms);
-    let mut time_text = String::with_capacity(64);
-    time_text.push(' ');
-    fgc(&mut time_text, TX_WHITE);
-    time_text.push_str(BOLD);
-    write!(time_text, "{} {:02}:{:02}", ICN_HEART, now.hour(), now.minute()).unwrap();
-    time_text.push_str(RST);
-    if sessions_count > 1 {
+    if flags.time {
+        let now = Local::now();
+        let dur = fmt_duration(session_ms);
+        let mut time_text = String::with_capacity(64);
         time_text.push(' ');
-        fgc(&mut time_text, TX_GRAY);
-        write!(time_text, "{}{}", ICN_SESSIONS, sessions_count).unwrap();
+        fgc(&mut time_text, TX_WHITE);
+        time_text.push_str(BOLD);
+        write!(time_text, "{} {:02}:{:02}", ICN_HEART, now.hour(), now.minute()).unwrap();
         time_text.push_str(RST);
-    }
-    if !dur.is_empty() {
+        if sessions_count > 1 {
+            time_text.push(' ');
+            fgc(&mut time_text, TX_GRAY);
+            write!(time_text, "{}{}", ICN_SESSIONS, sessions_count).unwrap();
+            time_text.push_str(RST);
+        }
+        if !dur.is_empty() {
+            time_text.push(' ');
+            fgc(&mut time_text, TX_GRAY);
+            time_text.push_str(&dur);
+            time_text.push_str(RST);
+        }
         time_text.push(' ');
-        fgc(&mut time_text, TX_GRAY);
-        time_text.push_str(&dur);
-        time_text.push_str(RST);
+        segments.push(Segment { text: time_text, bg: BG_TIME, priority: P_TIME });
     }
-    time_text.push(' ');
-    segments.push(Segment { text: time_text, bg: BG_TIME, priority: P_TIME });
 
     // 4.1 Model segment — priority 1 (always visible).
-    let mut model_text = String::with_capacity(32);
-    model_text.push(' ');
-    fgc(&mut model_text, TX_WHITE);
-    model_text.push_str(BOLD);
-    write!(model_text, "{} {}", ICN_MODEL, model).unwrap();
-    model_text.push_str(RST);
-    model_text.push(' ');
-    segments.push(Segment { text: model_text, bg: BG_MODEL, priority: P_MODEL });
+    if flags.model {
+        let mut model_text = String::with_capacity(32);
+        model_text.push(' ');
+        fgc(&mut model_text, TX_WHITE);
+        model_text.push_str(BOLD);
+        write!(model_text, "{} {}", ICN_MODEL, model).unwrap();
+        model_text.push_str(RST);
+        model_text.push(' ');
+        segments.push(Segment { text: model_text, bg: BG_MODEL, priority: P_MODEL });
+    }
 
     // 4.2 Folder + worktree indicator — priority 4.
-    let mut folder_text = String::with_capacity(64);
-    folder_text.push(' ');
-    fgc(&mut folder_text, TX_WHITE);
-    write!(folder_text, "{} {}", ICN_FOLDER, folder).unwrap();
-    folder_text.push_str(RST);
-    if data.workspace.git_worktree {
+    if flags.folder {
+        let mut folder_text = String::with_capacity(64);
         folder_text.push(' ');
         fgc(&mut folder_text, TX_WHITE);
-        folder_text.push_str(ICN_WORKTREE);
+        write!(folder_text, "{} {}", ICN_FOLDER, folder).unwrap();
         folder_text.push_str(RST);
+        if data.workspace.git_worktree {
+            folder_text.push(' ');
+            fgc(&mut folder_text, TX_WHITE);
+            folder_text.push_str(ICN_WORKTREE);
+            folder_text.push_str(RST);
+        }
+        folder_text.push(' ');
+        segments.push(Segment { text: folder_text, bg: BG_FOLDER, priority: P_FOLDER });
     }
-    folder_text.push(' ');
-    segments.push(Segment { text: folder_text, bg: BG_FOLDER, priority: P_FOLDER });
 
     // 4.3 Git segment — priority 3.
-    if git_info.is_repo {
+    if flags.git && git_info.is_repo {
         let mut gs = String::with_capacity(64);
         if git_info.ahead > 0 {
             gs.push(' ');
@@ -201,32 +212,36 @@ pub(crate) fn render(data: ClaudeInput, cols: usize) -> String {
     }
 
     // 4.4 Context segment — priority 2 (critical).
-    let bar = context_bar(ctx_pct as f64, BAR_WIDTH, CTX_EMPTY);
-    let mut ctx_text = String::with_capacity(128);
-    ctx_text.push(' ');
-    fgc(&mut ctx_text, TX_DARK);
-    ctx_text.push_str(ICN_CTX);
-    ctx_text.push_str(RST);
-    ctx_text.push(' ');
-    ctx_text.push_str(&bar);
-    ctx_text.push(' ');
-    fgc(&mut ctx_text, TX_DARK);
-    ctx_text.push_str(BOLD);
-    write!(ctx_text, "{}%", ctx_pct).unwrap();
-    ctx_text.push_str(RST);
-    ctx_text.push(' ');
-    fgc(&mut ctx_text, TX_DARK);
-    if used_tokens > 0 {
-        write!(ctx_text, "{}/{}", fmt_tokens(used_tokens), ctx_label).unwrap();
-    } else {
-        ctx_text.push_str(&ctx_label);
+    if flags.context {
+        let bar = context_bar(ctx_pct as f64, BAR_WIDTH, CTX_EMPTY);
+        let mut ctx_text = String::with_capacity(128);
+        ctx_text.push(' ');
+        fgc(&mut ctx_text, TX_DARK);
+        ctx_text.push_str(ICN_CTX);
+        ctx_text.push_str(RST);
+        ctx_text.push(' ');
+        ctx_text.push_str(&bar);
+        ctx_text.push(' ');
+        fgc(&mut ctx_text, TX_DARK);
+        ctx_text.push_str(BOLD);
+        write!(ctx_text, "{}%", ctx_pct).unwrap();
+        ctx_text.push_str(RST);
+        ctx_text.push(' ');
+        fgc(&mut ctx_text, TX_DARK);
+        if used_tokens > 0 {
+            write!(ctx_text, "{}/{}", fmt_tokens(used_tokens), ctx_label).unwrap();
+        } else {
+            ctx_text.push_str(&ctx_label);
+        }
+        ctx_text.push_str(RST);
+        ctx_text.push(' ');
+        segments.push(Segment { text: ctx_text, bg: BG_CTX, priority: P_CTX });
     }
-    ctx_text.push_str(RST);
-    ctx_text.push(' ');
-    segments.push(Segment { text: ctx_text, bg: BG_CTX, priority: P_CTX });
 
     // 4.5 Rate limits (two segments) OR cost (one segment) — mutually exclusive.
-    if data.rate_limits.is_some() {
+    let show_limits = flags.limits && data.rate_limits.is_some();
+    let show_cost = flags.cost && data.rate_limits.is_none() && cost_usd > 0.0;
+    if show_limits {
         if let Some(pct) = block_pct {
             if pct >= LIMIT_SHOW_THRESHOLD {
                 let mut t = String::with_capacity(48);
@@ -265,7 +280,8 @@ pub(crate) fn render(data: ClaudeInput, cols: usize) -> String {
                 segments.push(Segment { text: t, bg: BG_LIMIT_7D, priority: P_LIMIT_7D });
             }
         }
-    } else if cost_usd > 0.0 {
+    }
+    if show_cost {
         let mut t = String::with_capacity(32);
         t.push(' ');
         fgc(&mut t, TX_WHITE);
@@ -276,7 +292,7 @@ pub(crate) fn render(data: ClaudeInput, cols: usize) -> String {
     }
 
     // 5. Version suffix (fallback rebuild if too wide).
-    let version_suffix = if !data.version.is_empty() {
+    let version_suffix = if flags.version && !data.version.is_empty() {
         let mut s = String::with_capacity(16);
         s.push(' ');
         fgc(&mut s, TX_GRAY);
