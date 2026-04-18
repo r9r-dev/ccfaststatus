@@ -28,7 +28,7 @@ use config::{
 };
 use format::{context_bar, fmt_duration, fmt_time, fmt_tokens};
 use input::ClaudeInput;
-use segments::{build_powerline, Segment};
+use segments::{Segment, SegmentKind, SegmentRich};
 use term::{display_width, fgc, get_cols, strip_ansi, BOLD, DIM, RST};
 
 fn main() {
@@ -307,12 +307,33 @@ pub(crate) fn render_with(data: ClaudeInput, cols: usize, settings: settings::Se
         String::new()
     };
 
-    let mut output = build_powerline(segments.clone(), &version_suffix, cols);
+    let skin = skins::resolve_skin("powerline");
+    let theme = &theme::M365PRINCESS;
+    let rich = to_rich(segments.clone());
+    let mut output = skin.render(&vec![rich], theme, cols, &version_suffix);
     if !version_suffix.is_empty() && display_width(&strip_ansi(&output)) > cols {
-        output = build_powerline(segments, "", cols);
+        let rich2 = to_rich(segments);
+        output = skin.render(&vec![rich2], theme, cols, "");
     }
 
     output
+}
+
+/// Phase A helper : convert legacy Segment to SegmentRich with placeholder
+/// kind. Powerline skin only uses text/bg/priority, so the kind is unused here.
+/// Phase C rewrites render_with to build SegmentRich directly with real kinds.
+fn to_rich(segments: Vec<Segment>) -> Vec<SegmentRich> {
+    segments
+        .into_iter()
+        .map(|s| SegmentRich {
+            kind: SegmentKind::Model(String::new()),
+            text: s.text,
+            bg: s.bg,
+            fg: (0, 0, 0),
+            icon: "",
+            priority: s.priority,
+        })
+        .collect()
 }
 
 /// Shorten the model display name: "Opus 4.7 (1M context)" → "Opus".
