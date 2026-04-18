@@ -41,11 +41,21 @@ fn estimate_width(kept: &[SegmentRich]) -> usize {
         .sum()
 }
 
+pub mod bullet;
+pub mod minimal;
+pub mod pipe;
 pub mod powerline;
+pub mod rainbow;
+pub mod rounded;
 
 pub fn resolve_skin(name: &str) -> &'static dyn Skin {
     match name {
         "powerline" => &powerline::POWERLINE,
+        "minimal" => &minimal::MINIMAL,
+        "rounded" => &rounded::ROUNDED,
+        "pipe" => &pipe::PIPE,
+        "rainbow" => &rainbow::RAINBOW,
+        "bullet" => &bullet::BULLET,
         _ => &powerline::POWERLINE,
     }
 }
