@@ -43,6 +43,28 @@ Après installation, lancer `ccfaststatus` depuis un terminal pour installer la 
 ccfaststatus
 ```
 
+ccfaststatus lit `~/.config/ccfaststatus/config.toml` (ou `$XDG_CONFIG_HOME/ccfaststatus/config.toml`) à chaque rendu. Sans fichier, tous les segments sont affichés (comportement par défaut).
+
+### TUI interactive
+
+Lance `ccfaststatus` dans un terminal (pas en pipe) puis accepte le prompt « Configurer ccfaststatus ? ». Utilise `Tab`/`↑↓`/`Espace` pour naviguer et toggler, `s` pour sauvegarder, `q` pour quitter.
+
+### Format TOML manuel
+
+```toml
+[segments]
+time    = true
+model   = true
+folder  = true
+git     = true
+context = true
+cost    = true
+limits  = true
+version = true
+```
+
+Une clé absente conserve sa valeur par défaut (`true`). Si tous les segments sont à `false`, `model` est forcé à `true` pour éviter un rendu vide.
+
 ## Tests
 
 ```sh

@@ -21,6 +21,13 @@ src/
   segments.rs   -- Segment + build_powerline (troncature par priorité)
   sessions.rs   -- comptage processus "claude" via FFI native (libc proc_listpids + sysctl)
   git.rs        -- git2 + cache binaire bincode (TTL 5 s)
+  settings.rs   -- config utilisateur TOML : Settings, SegmentFlags, load/save,
+                   config_path (XDG + HOME fallback), garde-fou all-false→model=true
+  tui/
+    mod.rs      -- event loop ratatui + alt screen, retourne Option<Settings>
+    state.rs    -- App + ALL_SEGMENTS (data-driven pour v0.5)
+    events.rs   -- handle_key (testable sans terminal)
+    ui.rs       -- draw : 3 panneaux (categories / options / preview)
 tests/
   golden.rs     -- snapshot tests ANSI contre fixtures figées
   fixtures/     -- .json (payload) + .expected (sortie ANSI capturée)
@@ -66,6 +73,14 @@ uncommitted, car la fixture `with_git` pointe le repo lui-même. C'est normal
   pas juste `is_already_configured`, pour attraper toute corruption silencieuse.
 - `render()` est `pub(crate)` pour que `install::preview()` puisse l'appeler.
   Si un jour la crate devient `lib`, il faudra repasser en `pub`.
+- `render_with(data, cols, settings)` est la fonction réelle : `render` est un
+  wrapper qui appelle `Settings::load()`. Permet les tests d'injecter une config.
+- `settings::Settings::load()` ne panique jamais : fichier absent ou TOML
+  malformé → défauts + warning stderr. Cohérent avec le hot path.
+- `ALL_SEGMENTS` dans `tui::state` est la source de vérité data-driven :
+  ajouter un segment en v0.5 = ajouter une entrée, la TUI s'adapte.
+- Preview TUI v0.3 : texte brut (strip_ansi). L'affichage ANSI coloré
+  en preview est reporté à v0.4 avec les thèmes.
 
 ## Homebrew tap
 
