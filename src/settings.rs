@@ -76,6 +76,34 @@ impl Settings {
 
         Ok(settings)
     }
+
+    pub fn load_from(path: &std::path::Path) -> Self {
+        match std::fs::read_to_string(path) {
+            Ok(content) => match Self::parse_toml(&content) {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!(
+                        "ccfaststatus: {} invalide, défauts appliqués : {}",
+                        path.display(),
+                        e
+                    );
+                    Settings::default()
+                }
+            },
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Settings::default(),
+            Err(e) => {
+                eprintln!("ccfaststatus: impossible de lire {} : {}", path.display(), e);
+                Settings::default()
+            }
+        }
+    }
+
+    pub fn load() -> Self {
+        match config_path() {
+            Ok(p) => Self::load_from(&p),
+            Err(_) => Settings::default(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -199,5 +227,32 @@ version = false
 "#;
         let s = Settings::parse_toml(t).unwrap();
         assert!(s.segments.model, "model forcé à true si tout est désactivé");
+    }
+
+    #[test]
+    fn load_missing_file_returns_defaults() {
+        let tmp = std::env::temp_dir().join("ccfaststatus-test-missing.toml");
+        let _ = std::fs::remove_file(&tmp);
+        let s = Settings::load_from(&tmp);
+        assert_eq!(s, Settings::default());
+    }
+
+    #[test]
+    fn load_valid_file_parses() {
+        let tmp = std::env::temp_dir().join("ccfaststatus-test-valid.toml");
+        std::fs::write(&tmp, "[segments]\ngit = false\n").unwrap();
+        let s = Settings::load_from(&tmp);
+        assert!(!s.segments.git);
+        assert!(s.segments.time);
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    #[test]
+    fn load_malformed_file_returns_defaults() {
+        let tmp = std::env::temp_dir().join("ccfaststatus-test-bad.toml");
+        std::fs::write(&tmp, "[[[ broken").unwrap();
+        let s = Settings::load_from(&tmp);
+        assert_eq!(s, Settings::default());
+        let _ = std::fs::remove_file(&tmp);
     }
 }
