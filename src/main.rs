@@ -6,6 +6,7 @@ mod install;
 mod segments;
 mod sessions;
 mod settings;
+mod skins;
 mod term;
 mod theme;
 mod tui;
