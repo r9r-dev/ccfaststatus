@@ -40,9 +40,21 @@ impl Default for SegmentFlags {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Settings {
     pub segments: SegmentFlags,
+    pub theme: String,
+    pub skin: String,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            segments: SegmentFlags::default(),
+            theme: "m365princess".to_string(),
+            skin: "powerline".to_string(),
+        }
+    }
 }
 
 impl Settings {
@@ -72,6 +84,18 @@ impl Settings {
             && !f.context && !f.cost && !f.limits && !f.version
         {
             settings.segments.model = true;
+        }
+
+        if let Some(theme_tbl) = value.get("theme").and_then(|v| v.as_table()) {
+            if let Some(name) = theme_tbl.get("name").and_then(|v| v.as_str()) {
+                settings.theme = name.to_string();
+            }
+        }
+
+        if let Some(skin_tbl) = value.get("skin").and_then(|v| v.as_table()) {
+            if let Some(name) = skin_tbl.get("name").and_then(|v| v.as_str()) {
+                settings.skin = name.to_string();
+            }
         }
 
         Ok(settings)
@@ -117,8 +141,15 @@ context = {}
 cost    = {}
 limits  = {}
 version = {}
+
+[theme]
+name = "{}"
+
+[skin]
+name = "{}"
 "#,
             f.time, f.model, f.folder, f.git, f.context, f.cost, f.limits, f.version,
+            self.theme, self.skin,
         )
     }
 
@@ -301,6 +332,52 @@ version = false
         let loaded = Settings::load_from(&tmp);
         assert_eq!(s, loaded);
         let _ = std::fs::remove_file(&tmp);
+    }
+
+    #[test]
+    fn default_theme_is_m365princess() {
+        let s = Settings::default();
+        assert_eq!(s.theme, "m365princess");
+    }
+
+    #[test]
+    fn default_skin_is_powerline() {
+        let s = Settings::default();
+        assert_eq!(s.skin, "powerline");
+    }
+
+    #[test]
+    fn parse_theme_and_skin_from_toml() {
+        let t = r#"
+[theme]
+name = "catppuccin"
+
+[skin]
+name = "minimal"
+"#;
+        let s = Settings::parse_toml(t).unwrap();
+        assert_eq!(s.theme, "catppuccin");
+        assert_eq!(s.skin, "minimal");
+    }
+
+    #[test]
+    fn parse_missing_theme_keeps_default() {
+        let t = r#"[segments]
+git = false
+"#;
+        let s = Settings::parse_toml(t).unwrap();
+        assert_eq!(s.theme, "m365princess");
+        assert_eq!(s.skin, "powerline");
+    }
+
+    #[test]
+    fn roundtrip_theme_skin() {
+        let mut s = Settings::default();
+        s.theme = "dracula".to_string();
+        s.skin = "bullet".to_string();
+        let re = Settings::parse_toml(&s.to_toml()).unwrap();
+        assert_eq!(re.theme, "dracula");
+        assert_eq!(re.skin, "bullet");
     }
 
     #[test]
