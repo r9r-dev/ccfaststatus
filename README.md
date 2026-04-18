@@ -1,28 +1,28 @@
 # ccfaststatus
 
-The Fastest Status Line for Claude Code. Binaire Rust natif, drop-in compatible
-avec la config `statusLine.command` de `~/.claude/settings.json`.
+"The Fastest Status Line for Claude Code!"
 
 ## Motivation
 
-Permettre un refresh à la seconde — l'intervalle le plus court autorisé par
-Claude Code — avec toute la logique en Rust : zéro `subprocess` (pas d'appel à
-`git`, `ps`, `stty`), libgit2 vendored, énumération processus par FFI native.
+A la base, je souhaitais m'amuser à créer une statusline en 60 fps (parce que pourquoi pas). Au final, l'intervalle le plus court autorisé par Claude Code étant de 1 seconde, je m'en contente mais garde le même objectif : mettre a jour la status line en moins de 16,6ms (soit 60 fps théorique).
+
+Pour permettre ce refresh à la seconde sans perdre en fonctionnalités, toute la logique est en Rust et aucun "subprocess" n'est autorisé. Donc pas d'appel à `git`, `ps` ou `stty` par exemple.
 
 ## Perf observée
 
+Après quelques itérations et fix, la première version est tout juste au premier lancement mais ensuite passe largement sous les 16ms.
+
 | Chemin | Temps mesuré (macOS arm64) |
 |--------|----------------------------|
-| Cache git chaud (médiane pure binaire) | ~9.75 ms |
-| Cache git froid (premier run, disk load) | ~18 ms |
-| Cache git froid (runs cold suivants) | ~11 ms |
-| Taille binaire | 974 KB |
+| Premier lancement | ~18 ms |
+| Cache git froid | ~11 ms |
+| Cache git chaud | ~10 ms |
 
-Mesures réalisées via `zsh/datetime` (`EPOCHREALTIME`) sur Apple Silicon. Le chiffre pure binaire est mesuré en fournissant le payload sur stdin directement, sans overhead de shell pipe (`cat file | binary` ajoute ~2.5 ms supplémentaires).
+Mesures réalisées via `zsh/datetime` (`EPOCHREALTIME`) sur Apple Silicon. Le fait de lancer la commande `datetime` a sans doute son propre impact donc en réel on est probablement sous ces valeurs.
 
 ## Installation
 
-### Homebrew (macOS arm64)
+### Homebrew (macOS arm64 uniquement !)
 
 ```sh
 brew install r9r-dev/tap/ccfaststatus
@@ -35,56 +35,16 @@ cargo build --release
 ln -sf "$PWD/target/release/ccfaststatus" ~/.local/bin/ccfaststatus
 ```
 
-Le premier build compile `libgit2` statiquement (~60-120 s). Les builds suivants
-sont quasi-instantanés (LTO `fat` + `codegen-units = 1`).
-
 ## Configuration
 
-Après installation, lance `ccfaststatus` depuis un terminal pour configurer
-interactivement `~/.claude/settings.json` :
+Après installation, lancer `ccfaststatus` depuis un terminal pour installer la status line :
 
 ```sh
 ccfaststatus
 ```
 
-Deux prompts :
-
-1. Si la Status Line n'est pas encore configurée, elle sera installée.
-2. L'intervalle de rafraîchissement en secondes (défaut : 1, le minimum
-   autorisé par Claude Code).
-
-Un aperçu de la Status Line est affiché à la fin pour valider visuellement
-que tout fonctionne. Redémarre Claude Code après configuration.
-
 ## Tests
 
 ```sh
 cargo test
-```
-
-42 tests au total :
-- 34 tests unitaires (formatters, ANSI, segments, etc.)
-- 8 tests golden qui comparent la sortie ANSI à des fixtures figées, avec masquage des parties dépendant du temps (HH:MM, durées, time_left, compteurs git)
-
-Fixtures golden (`tests/fixtures/*.json` + `.expected`) :
-`minimal`, `with_git`, `rate_limits`, `narrow_80cols`, `cost_only`,
-`no_workspace`, `worktree`, `narrow_version_drop`.
-
-## Architecture
-
-```
-src/
-  main.rs       -- orchestration (stdin, threads, segments, println)
-  input.rs      -- structs serde pour le payload Claude Code
-  config.rs     -- palette M365Princess, icônes Nerd Font, priorités
-  term.rs       -- ANSI helpers (fgc/bgc, strip_ansi, get_cols)
-  format.rs     -- fmt_time, fmt_duration, fmt_tokens, mini_bar, context_bar
-  segments.rs   -- Segment + build_powerline avec troncature par priorité
-  sessions.rs   -- comptage processus claude via FFI native
-                   (macOS : libc::proc_listpids + sysctl KERN_PROCARGS2
-                    Linux : readdir /proc/*/comm)
-  git.rs        -- git2 + cache binaire bincode (TTL 5 s)
-tests/
-  golden.rs     -- snapshot tests contre fixtures figées
-  fixtures/     -- JSON payloads + .expected captures
 ```
