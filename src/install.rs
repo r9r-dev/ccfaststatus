@@ -34,8 +34,8 @@ fn run_inner() -> Result<(), String> {
 
     // Round-trip verification
     let verify = read_settings(&path)?;
-    if !is_already_configured(&verify) {
-        return Err("round-trip verification failed".to_string());
+    if verify != updated {
+        return Err("la vérification round-trip a échoué".to_string());
     }
 
     if already {
@@ -52,7 +52,8 @@ fn run_inner() -> Result<(), String> {
 }
 
 pub fn settings_path() -> Result<PathBuf, String> {
-    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
+    let home = std::env::var("HOME")
+        .map_err(|_| "variable d'environnement HOME non définie".to_string())?;
     Ok(Path::new(&home).join(".claude").join("settings.json"))
 }
 
@@ -60,26 +61,26 @@ pub fn read_settings(path: &Path) -> Result<Value, String> {
     match fs::read_to_string(path) {
         Ok(s) => {
             let parsed: Value = serde_json::from_str(&s)
-                .map_err(|e| format!("{} is not valid JSON: {}", path.display(), e))?;
+                .map_err(|e| format!("{} n'est pas un JSON valide : {}", path.display(), e))?;
             if !parsed.is_object() {
-                return Err(format!("{} root must be a JSON object", path.display()));
+                return Err(format!("la racine de {} doit être un objet JSON", path.display()));
             }
             Ok(parsed)
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(json!({})),
-        Err(e) => Err(format!("failed to read {}: {}", path.display(), e)),
+        Err(e) => Err(format!("impossible de lire {} : {}", path.display(), e)),
     }
 }
 
 pub fn write_settings(path: &Path, value: &Value) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
-            .map_err(|e| format!("failed to create {}: {}", parent.display(), e))?;
+            .map_err(|e| format!("impossible de créer {} : {}", parent.display(), e))?;
     }
     let pretty = serde_json::to_string_pretty(value)
-        .map_err(|e| format!("serialize error: {}", e))?;
+        .map_err(|e| format!("erreur de sérialisation : {}", e))?;
     fs::write(path, pretty + "\n")
-        .map_err(|e| format!("failed to write {}: {}", path.display(), e))
+        .map_err(|e| format!("impossible d'écrire {} : {}", path.display(), e))
 }
 
 pub fn is_already_configured(settings: &Value) -> bool {
