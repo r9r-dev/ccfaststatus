@@ -9,25 +9,10 @@ pub const GIT_CACHE_FILE: &str = "/tmp/.claude-statusline-git-cache.bin";
 pub const PW: char = '\u{E0B0}';
 pub const PW_THIN: char = '\u{E0B1}';
 
-// RGB type
+// RGB type (kept for Segment.bg, used across config/theme/skins)
 pub type Rgb = (u8, u8, u8);
 
-// Segment background colors (M365Princess pastel palette)
-pub const BG_TIME:     Rgb = (30,  30,  35);  // #1E1E23 near-black
-pub const BG_MODEL:    Rgb = (154, 52,  142); // #9A348E plum
-pub const BG_FOLDER:   Rgb = (218, 98,  125); // #DA627D blush
-pub const BG_GIT:      Rgb = (252, 161, 125); // #FCA17D salmon
-pub const BG_CTX:      Rgb = (134, 187, 216); // #86BBD8 sky
-pub const BG_LIMIT_5H: Rgb = (91,  143, 176); // #5B8FB0 steel_blue clair
-pub const BG_LIMIT_7D: Rgb = (51,  101, 138); // #33658A teal_blue
-
-// Text colors
-pub const TX_WHITE: Rgb = (255, 255, 255);
-pub const TX_DARK:  Rgb = (40,  25,  55);
-pub const TX_GRAY:  Rgb = (156, 163, 175);
-
-// Empty slot colors for the context bar
-pub const CTX_EMPTY: Rgb = (70, 110, 140);
+// Note: couleurs déplacées dans src/theme.rs (Theme::M365PRINCESS).
 
 // Icons (Nerd Font nf-md-*)
 pub const ICN_HEART:     &str = "♥";

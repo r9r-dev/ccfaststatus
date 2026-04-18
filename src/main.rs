@@ -20,11 +20,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use chrono::{Local, Timelike};
 
 use config::{
-    BAR_WIDTH, BG_CTX, BG_FOLDER, BG_GIT, BG_LIMIT_5H, BG_LIMIT_7D, BG_MODEL, BG_TIME, CTX_EMPTY,
-    ICN_ADDED, ICN_AHEAD, ICN_CALENDAR, ICN_COST, ICN_CTX, ICN_DELETED, ICN_FOLDER, ICN_GIT,
-    ICN_HEART, ICN_MODEL, ICN_MODIFIED, ICN_SESSIONS, ICN_TIMER, ICN_WORKTREE,
+    BAR_WIDTH, ICN_ADDED, ICN_AHEAD, ICN_CALENDAR, ICN_COST, ICN_CTX, ICN_DELETED, ICN_FOLDER,
+    ICN_GIT, ICN_HEART, ICN_MODEL, ICN_MODIFIED, ICN_SESSIONS, ICN_TIMER, ICN_WORKTREE,
     LIMIT_SHOW_THRESHOLD, P_COST, P_CTX, P_FOLDER, P_GIT, P_LIMIT_5H, P_LIMIT_7D, P_MODEL, P_TIME,
-    TX_DARK, TX_GRAY, TX_WHITE,
 };
 use format::{context_bar, fmt_duration, fmt_time, fmt_tokens};
 use input::ClaudeInput;
@@ -61,6 +59,7 @@ pub(crate) fn render(data: ClaudeInput, cols: usize) -> String {
 
 pub(crate) fn render_with(data: ClaudeInput, cols: usize, settings: settings::Settings) -> String {
     let flags = &settings.segments;
+    let palette: &theme::Theme = &theme::M365PRINCESS;
     // 2. Resolve cwd, then start parallel collectors.
     let cwd = data
         .workspace
@@ -121,53 +120,53 @@ pub(crate) fn render_with(data: ClaudeInput, cols: usize, settings: settings::Se
         let dur = fmt_duration(session_ms);
         let mut time_text = String::with_capacity(64);
         time_text.push(' ');
-        fgc(&mut time_text, TX_WHITE);
+        fgc(&mut time_text, palette.tx_white);
         time_text.push_str(BOLD);
         write!(time_text, "{} {:02}:{:02}", ICN_HEART, now.hour(), now.minute()).unwrap();
         time_text.push_str(RST);
         if sessions_count > 1 {
             time_text.push(' ');
-            fgc(&mut time_text, TX_GRAY);
+            fgc(&mut time_text, palette.tx_gray);
             write!(time_text, "{}{}", ICN_SESSIONS, sessions_count).unwrap();
             time_text.push_str(RST);
         }
         if !dur.is_empty() {
             time_text.push(' ');
-            fgc(&mut time_text, TX_GRAY);
+            fgc(&mut time_text, palette.tx_gray);
             time_text.push_str(&dur);
             time_text.push_str(RST);
         }
         time_text.push(' ');
-        segments.push(Segment { text: time_text, bg: BG_TIME, priority: P_TIME });
+        segments.push(Segment { text: time_text, bg: palette.bg_time, priority: P_TIME });
     }
 
     // 4.1 Model segment — priority 1 (always visible).
     if flags.model {
         let mut model_text = String::with_capacity(32);
         model_text.push(' ');
-        fgc(&mut model_text, TX_WHITE);
+        fgc(&mut model_text, palette.tx_white);
         model_text.push_str(BOLD);
         write!(model_text, "{} {}", ICN_MODEL, model).unwrap();
         model_text.push_str(RST);
         model_text.push(' ');
-        segments.push(Segment { text: model_text, bg: BG_MODEL, priority: P_MODEL });
+        segments.push(Segment { text: model_text, bg: palette.bg_model, priority: P_MODEL });
     }
 
     // 4.2 Folder + worktree indicator — priority 4.
     if flags.folder {
         let mut folder_text = String::with_capacity(64);
         folder_text.push(' ');
-        fgc(&mut folder_text, TX_WHITE);
+        fgc(&mut folder_text, palette.tx_white);
         write!(folder_text, "{} {}", ICN_FOLDER, folder).unwrap();
         folder_text.push_str(RST);
         if data.workspace.git_worktree {
             folder_text.push(' ');
-            fgc(&mut folder_text, TX_WHITE);
+            fgc(&mut folder_text, palette.tx_white);
             folder_text.push_str(ICN_WORKTREE);
             folder_text.push_str(RST);
         }
         folder_text.push(' ');
-        segments.push(Segment { text: folder_text, bg: BG_FOLDER, priority: P_FOLDER });
+        segments.push(Segment { text: folder_text, bg: palette.bg_folder, priority: P_FOLDER });
     }
 
     // 4.3 Git segment — priority 3.
@@ -175,62 +174,62 @@ pub(crate) fn render_with(data: ClaudeInput, cols: usize, settings: settings::Se
         let mut gs = String::with_capacity(64);
         if git_info.ahead > 0 {
             gs.push(' ');
-            fgc(&mut gs, TX_DARK);
+            fgc(&mut gs, palette.tx_dark);
             gs.push_str(BOLD);
             write!(gs, "{}{}", ICN_AHEAD, git_info.ahead).unwrap();
             gs.push_str(RST);
         }
         if git_info.added > 0 {
             gs.push(' ');
-            fgc(&mut gs, TX_DARK);
+            fgc(&mut gs, palette.tx_dark);
             write!(gs, "{}{}", ICN_ADDED, git_info.added).unwrap();
             gs.push_str(RST);
         }
         if git_info.deleted > 0 {
             gs.push(' ');
-            fgc(&mut gs, TX_DARK);
+            fgc(&mut gs, palette.tx_dark);
             write!(gs, "{}{}", ICN_DELETED, git_info.deleted).unwrap();
             gs.push_str(RST);
         }
         if git_info.modified > 0 {
             gs.push(' ');
-            fgc(&mut gs, TX_DARK);
+            fgc(&mut gs, palette.tx_dark);
             write!(gs, "{}{}", ICN_MODIFIED, git_info.modified).unwrap();
             gs.push_str(RST);
         }
         if gs.is_empty() {
             gs.push(' ');
-            fgc(&mut gs, TX_DARK);
+            fgc(&mut gs, palette.tx_dark);
             gs.push('✓');
             gs.push_str(RST);
         }
         let mut git_text = String::with_capacity(96);
         git_text.push(' ');
-        fgc(&mut git_text, TX_DARK);
+        fgc(&mut git_text, palette.tx_dark);
         write!(git_text, "{} {}", ICN_GIT, git_info.branch).unwrap();
         git_text.push_str(RST);
         git_text.push_str(&gs);
         git_text.push(' ');
-        segments.push(Segment { text: git_text, bg: BG_GIT, priority: P_GIT });
+        segments.push(Segment { text: git_text, bg: palette.bg_git, priority: P_GIT });
     }
 
     // 4.4 Context segment — priority 2 (critical).
     if flags.context {
-        let bar = context_bar(ctx_pct as f64, BAR_WIDTH, CTX_EMPTY);
+        let bar = context_bar(ctx_pct as f64, BAR_WIDTH, palette.ctx_empty);
         let mut ctx_text = String::with_capacity(128);
         ctx_text.push(' ');
-        fgc(&mut ctx_text, TX_DARK);
+        fgc(&mut ctx_text, palette.tx_dark);
         ctx_text.push_str(ICN_CTX);
         ctx_text.push_str(RST);
         ctx_text.push(' ');
         ctx_text.push_str(&bar);
         ctx_text.push(' ');
-        fgc(&mut ctx_text, TX_DARK);
+        fgc(&mut ctx_text, palette.tx_dark);
         ctx_text.push_str(BOLD);
         write!(ctx_text, "{}%", ctx_pct).unwrap();
         ctx_text.push_str(RST);
         ctx_text.push(' ');
-        fgc(&mut ctx_text, TX_DARK);
+        fgc(&mut ctx_text, palette.tx_dark);
         if used_tokens > 0 {
             write!(ctx_text, "{}/{}", fmt_tokens(used_tokens), ctx_label).unwrap();
         } else {
@@ -238,7 +237,7 @@ pub(crate) fn render_with(data: ClaudeInput, cols: usize, settings: settings::Se
         }
         ctx_text.push_str(RST);
         ctx_text.push(' ');
-        segments.push(Segment { text: ctx_text, bg: BG_CTX, priority: P_CTX });
+        segments.push(Segment { text: ctx_text, bg: palette.bg_ctx, priority: P_CTX });
     }
 
     // 4.5 Rate limits (two segments) OR cost (one segment) — mutually exclusive.
@@ -249,56 +248,56 @@ pub(crate) fn render_with(data: ClaudeInput, cols: usize, settings: settings::Se
             if pct >= LIMIT_SHOW_THRESHOLD {
                 let mut t = String::with_capacity(48);
                 t.push(' ');
-                fgc(&mut t, TX_WHITE);
+                fgc(&mut t, palette.tx_white);
                 write!(t, "{} 5h ", ICN_TIMER).unwrap();
                 t.push_str(BOLD);
                 write!(t, "{}%", pct).unwrap();
                 t.push_str(RST);
                 if !time_left.is_empty() {
                     t.push(' ');
-                    fgc(&mut t, TX_WHITE);
+                    fgc(&mut t, palette.tx_white);
                     t.push_str(&time_left);
                     t.push_str(RST);
                 }
                 t.push(' ');
-                segments.push(Segment { text: t, bg: BG_LIMIT_5H, priority: P_LIMIT_5H });
+                segments.push(Segment { text: t, bg: palette.bg_limit_5h, priority: P_LIMIT_5H });
             }
         }
         if let Some(pct) = weekly_pct {
             if pct >= LIMIT_SHOW_THRESHOLD {
                 let mut t = String::with_capacity(48);
                 t.push(' ');
-                fgc(&mut t, TX_WHITE);
+                fgc(&mut t, palette.tx_white);
                 write!(t, "{} 7d ", ICN_CALENDAR).unwrap();
                 t.push_str(BOLD);
                 write!(t, "{}%", pct).unwrap();
                 t.push_str(RST);
                 if !weekly_left.is_empty() {
                     t.push(' ');
-                    fgc(&mut t, TX_WHITE);
+                    fgc(&mut t, palette.tx_white);
                     t.push_str(&weekly_left);
                     t.push_str(RST);
                 }
                 t.push(' ');
-                segments.push(Segment { text: t, bg: BG_LIMIT_7D, priority: P_LIMIT_7D });
+                segments.push(Segment { text: t, bg: palette.bg_limit_7d, priority: P_LIMIT_7D });
             }
         }
     }
     if show_cost {
         let mut t = String::with_capacity(32);
         t.push(' ');
-        fgc(&mut t, TX_WHITE);
+        fgc(&mut t, palette.tx_white);
         write!(t, "{} ${:.2}", ICN_COST, cost_usd).unwrap();
         t.push_str(RST);
         t.push(' ');
-        segments.push(Segment { text: t, bg: BG_LIMIT_7D, priority: P_COST });
+        segments.push(Segment { text: t, bg: palette.bg_limit_7d, priority: P_COST });
     }
 
     // 5. Version suffix (fallback rebuild if too wide).
     let version_suffix = if flags.version && !data.version.is_empty() {
         let mut s = String::with_capacity(16);
         s.push(' ');
-        fgc(&mut s, TX_GRAY);
+        fgc(&mut s, palette.tx_gray);
         s.push_str(DIM);
         write!(s, "v{}", data.version).unwrap();
         s.push_str(RST);
@@ -308,12 +307,11 @@ pub(crate) fn render_with(data: ClaudeInput, cols: usize, settings: settings::Se
     };
 
     let skin = skins::resolve_skin("powerline");
-    let theme = &theme::M365PRINCESS;
     let rich = to_rich(segments.clone());
-    let mut output = skin.render(&vec![rich], theme, cols, &version_suffix);
+    let mut output = skin.render(&vec![rich], palette, cols, &version_suffix);
     if !version_suffix.is_empty() && display_width(&strip_ansi(&output)) > cols {
         let rich2 = to_rich(segments);
-        output = skin.render(&vec![rich2], theme, cols, "");
+        output = skin.render(&vec![rich2], palette, cols, "");
     }
 
     output
