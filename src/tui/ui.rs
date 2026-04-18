@@ -6,7 +6,7 @@ use ratatui::{
     Frame,
 };
 
-use super::state::{App, Category, Panel, ALL_CATEGORIES, ALL_SEGMENTS};
+use super::state::{App, Category, Panel, ALL_CATEGORIES, ALL_SEGMENTS, ALL_SKIN_NAMES};
 use crate::input::ClaudeInput;
 use crate::theme::ALL_THEMES;
 
@@ -35,6 +35,7 @@ fn draw_categories(f: &mut Frame, area: Rect, app: &App) {
             let label = match cat {
                 Category::Segments => "Segments",
                 Category::Theme => "Thème",
+                Category::Skin => "Skin",
             };
             let mut line = Line::from(label.to_string());
             if i == app.category_idx {
@@ -73,6 +74,20 @@ fn draw_options(f: &mut Frame, area: Rect, app: &App) {
                 let checked = app.settings.theme == t.name;
                 let mark = if checked { "◉" } else { "◯" };
                 let text = format!(" {} {}", mark, t.name);
+                let mut line = Line::from(text);
+                if app.focus == Panel::Options && i == app.option_idx {
+                    line = line.style(Style::default().add_modifier(Modifier::REVERSED));
+                }
+                ListItem::new(line)
+            })
+            .collect(),
+        Category::Skin => ALL_SKIN_NAMES
+            .iter()
+            .enumerate()
+            .map(|(i, name)| {
+                let checked = app.settings.skin == *name;
+                let mark = if checked { "◉" } else { "◯" };
+                let text = format!(" {} {}", mark, name);
                 let mut line = Line::from(text);
                 if app.focus == Panel::Options && i == app.option_idx {
                     line = line.style(Style::default().add_modifier(Modifier::REVERSED));

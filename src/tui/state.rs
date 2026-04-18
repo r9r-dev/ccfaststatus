@@ -11,9 +11,19 @@ pub enum Panel {
 pub enum Category {
     Segments,
     Theme,
+    Skin,
 }
 
-pub const ALL_CATEGORIES: &[Category] = &[Category::Segments, Category::Theme];
+pub const ALL_CATEGORIES: &[Category] = &[Category::Segments, Category::Theme, Category::Skin];
+
+pub const ALL_SKIN_NAMES: &[&str] = &[
+    "powerline",
+    "minimal",
+    "rounded",
+    "pipe",
+    "rainbow",
+    "bullet",
+];
 
 pub struct SegmentDef {
     pub key: &'static str,
@@ -69,6 +79,9 @@ impl App {
                 let t = ALL_THEMES[self.option_idx];
                 self.settings.theme = t.name.to_string();
             }
+            Category::Skin => {
+                self.settings.skin = ALL_SKIN_NAMES[self.option_idx].to_string();
+            }
         }
     }
 
@@ -76,6 +89,7 @@ impl App {
         match self.current_category() {
             Category::Segments => ALL_SEGMENTS.len(),
             Category::Theme => ALL_THEMES.len(),
+            Category::Skin => ALL_SKIN_NAMES.len(),
         }
     }
 
@@ -163,6 +177,16 @@ mod tests {
         app.option_idx = 5;
         app.toggle_current_option();
         assert_eq!(app.settings.theme, "dracula");
+    }
+
+    #[test]
+    fn select_skin_updates_settings() {
+        let mut app = App::new(Settings::default());
+        app.category_idx = 2;
+        app.focus = Panel::Options;
+        app.option_idx = 5;
+        app.toggle_current_option();
+        assert_eq!(app.settings.skin, "bullet");
     }
 
     #[test]
