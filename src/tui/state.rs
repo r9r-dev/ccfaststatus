@@ -1,4 +1,5 @@
 use crate::settings::{SegmentFlags, Settings};
+use crate::theme::ALL_THEMES;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Panel {
@@ -9,9 +10,10 @@ pub enum Panel {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Category {
     Segments,
+    Theme,
 }
 
-pub const ALL_CATEGORIES: &[Category] = &[Category::Segments];
+pub const ALL_CATEGORIES: &[Category] = &[Category::Segments, Category::Theme];
 
 pub struct SegmentDef {
     pub key: &'static str,
@@ -63,12 +65,17 @@ impl App {
                 let current = (def.getter)(&self.settings.segments);
                 (def.setter)(&mut self.settings.segments, !current);
             }
+            Category::Theme => {
+                let t = ALL_THEMES[self.option_idx];
+                self.settings.theme = t.name.to_string();
+            }
         }
     }
 
     pub fn option_count(&self) -> usize {
         match self.current_category() {
             Category::Segments => ALL_SEGMENTS.len(),
+            Category::Theme => ALL_THEMES.len(),
         }
     }
 
@@ -146,6 +153,16 @@ mod tests {
             app.move_down();
         }
         assert_eq!(app.option_idx, ALL_SEGMENTS.len() - 1);
+    }
+
+    #[test]
+    fn select_theme_updates_settings() {
+        let mut app = App::new(Settings::default());
+        app.category_idx = 1;
+        app.focus = Panel::Options;
+        app.option_idx = 5;
+        app.toggle_current_option();
+        assert_eq!(app.settings.theme, "dracula");
     }
 
     #[test]
