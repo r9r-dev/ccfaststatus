@@ -430,4 +430,15 @@ mod tests {
     fn trim_keeps_string_with_no_trailing_digits() {
         assert_eq!(trim_trailing_version("Claude 4."), "Claude 4.");
     }
+
+    #[test]
+    fn render_without_git_segment() {
+        let json = include_str!("../tests/fixtures/with_git.json");
+        let data: ClaudeInput = serde_json::from_str(json).unwrap();
+        let mut s = settings::Settings::default();
+        s.segments.git = false;
+        let output = render_with(data, 200, s);
+        assert!(!output.contains('\u{F062C}'), "git icon absent");
+        assert!(output.contains('\u{F06A9}'), "model icon present");
+    }
 }
