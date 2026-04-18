@@ -7,6 +7,7 @@ mod segments;
 mod sessions;
 mod settings;
 mod term;
+mod tui;
 
 use std::fmt::Write as _;
 use std::io::{IsTerminal, Read};
