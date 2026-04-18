@@ -5,6 +5,7 @@ mod input;
 mod install;
 mod segments;
 mod sessions;
+mod settings;
 mod term;
 
 use std::fmt::Write as _;
