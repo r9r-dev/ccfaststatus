@@ -104,6 +104,32 @@ impl Settings {
             Err(_) => Settings::default(),
         }
     }
+
+    pub fn to_toml(&self) -> String {
+        let f = &self.segments;
+        format!(
+            r#"[segments]
+time    = {}
+model   = {}
+folder  = {}
+git     = {}
+context = {}
+cost    = {}
+limits  = {}
+version = {}
+"#,
+            f.time, f.model, f.folder, f.git, f.context, f.cost, f.limits, f.version,
+        )
+    }
+
+    pub fn save_to(&self, path: &std::path::Path) -> Result<(), String> {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("impossible de créer {} : {}", parent.display(), e))?;
+        }
+        std::fs::write(path, self.to_toml())
+            .map_err(|e| format!("impossible d'écrire {} : {}", path.display(), e))
+    }
 }
 
 #[cfg(test)]
@@ -254,5 +280,35 @@ version = false
         let s = Settings::load_from(&tmp);
         assert_eq!(s, Settings::default());
         let _ = std::fs::remove_file(&tmp);
+    }
+
+    #[test]
+    fn to_toml_roundtrip() {
+        let mut s = Settings::default();
+        s.segments.git = false;
+        s.segments.version = false;
+        let serialized = s.to_toml();
+        let reparsed = Settings::parse_toml(&serialized).unwrap();
+        assert_eq!(s, reparsed);
+    }
+
+    #[test]
+    fn write_roundtrip() {
+        let tmp = std::env::temp_dir().join("ccfaststatus-test-write.toml");
+        let mut s = Settings::default();
+        s.segments.folder = false;
+        s.save_to(&tmp).unwrap();
+        let loaded = Settings::load_from(&tmp);
+        assert_eq!(s, loaded);
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    #[test]
+    fn write_creates_parent_dir() {
+        let tmp = std::env::temp_dir().join("ccfaststatus-test-dir/config.toml");
+        let _ = std::fs::remove_dir_all(tmp.parent().unwrap());
+        Settings::default().save_to(&tmp).unwrap();
+        assert!(tmp.exists());
+        let _ = std::fs::remove_dir_all(tmp.parent().unwrap());
     }
 }
