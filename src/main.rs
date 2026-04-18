@@ -59,7 +59,7 @@ pub(crate) fn render(data: ClaudeInput, cols: usize) -> String {
 
 pub(crate) fn render_with(data: ClaudeInput, cols: usize, settings: settings::Settings) -> String {
     let flags = &settings.segments;
-    let palette: &theme::Theme = &theme::M365PRINCESS;
+    let palette: &theme::Theme = theme::resolve_theme(&settings.theme);
     // 2. Resolve cwd, then start parallel collectors.
     let cwd = data
         .workspace
@@ -306,7 +306,7 @@ pub(crate) fn render_with(data: ClaudeInput, cols: usize, settings: settings::Se
         String::new()
     };
 
-    let skin = skins::resolve_skin("powerline");
+    let skin = skins::resolve_skin(&settings.skin);
     let rich = to_rich(segments.clone());
     let mut output = skin.render(&vec![rich], palette, cols, &version_suffix);
     if !version_suffix.is_empty() && display_width(&strip_ansi(&output)) > cols {
@@ -462,5 +462,25 @@ mod tests {
         let output = render_with(data, 200, s);
         assert!(!output.contains('\u{F062C}'), "git icon absent");
         assert!(output.contains('\u{F06A9}'), "model icon present");
+    }
+
+    #[test]
+    fn render_with_dracula_uses_dracula_colors() {
+        let json = include_str!("../tests/fixtures/minimal.json");
+        let data: ClaudeInput = serde_json::from_str(json).unwrap();
+        let mut s = settings::Settings::default();
+        s.theme = "dracula".to_string();
+        let output = render_with(data, 200, s);
+        assert!(output.contains("48;2;189;147;249"), "dracula bg_model present");
+    }
+
+    #[test]
+    fn render_with_unknown_theme_falls_back() {
+        let json = include_str!("../tests/fixtures/minimal.json");
+        let data: ClaudeInput = serde_json::from_str(json).unwrap();
+        let mut s = settings::Settings::default();
+        s.theme = "xyzzy".to_string();
+        let output = render_with(data, 200, s);
+        assert!(output.contains("48;2;154;52;142"), "fallback m365princess bg_model present");
     }
 }
