@@ -48,7 +48,46 @@ fn run_inner() -> Result<(), String> {
     println!("Aperçu :");
     println!("{}", preview());
 
+    println!();
+    let configure = prompt_yes_no("Configurer ccfaststatus (segments visibles) ?", false);
+    if configure {
+        let initial = crate::settings::Settings::load();
+        match crate::tui::run(initial) {
+            Ok(Some(new_settings)) => {
+                let cfg_path = crate::settings::config_path()?;
+                new_settings.save_to(&cfg_path)?;
+                println!("Configuration sauvegardée dans {}", cfg_path.display());
+            }
+            Ok(None) => {
+                println!("Configuration annulée.");
+            }
+            Err(e) => {
+                eprintln!("Erreur TUI : {}", e);
+            }
+        }
+    }
+
     Ok(())
+}
+
+pub fn parse_yes_no(input: &str, default: bool) -> bool {
+    match input.trim().to_lowercase().as_str() {
+        "" => default,
+        "o" | "oui" | "y" | "yes" => true,
+        _ => false,
+    }
+}
+
+fn prompt_yes_no(question: &str, default: bool) -> bool {
+    use std::io::{stdin, stdout, BufRead, Write};
+    let suffix = if default { "[O/n]" } else { "[o/N]" };
+    print!("{} {} ", question, suffix);
+    let _ = stdout().flush();
+    let mut line = String::new();
+    if stdin().lock().read_line(&mut line).is_err() {
+        return default;
+    }
+    parse_yes_no(&line, default)
 }
 
 pub fn settings_path() -> Result<PathBuf, String> {
@@ -280,5 +319,27 @@ mod tests {
         let p = preview();
         assert!(!p.is_empty());
         assert!(p.contains("\x1b["));  // ANSI escape présent
+    }
+
+    #[test]
+    fn parse_yes_no_empty_returns_default() {
+        assert!(parse_yes_no("", true));
+        assert!(!parse_yes_no("", false));
+        assert!(parse_yes_no("\n", true));
+    }
+
+    #[test]
+    fn parse_yes_no_accepts_variants() {
+        assert!(parse_yes_no("o", false));
+        assert!(parse_yes_no("oui", false));
+        assert!(parse_yes_no("y", false));
+        assert!(parse_yes_no("Yes", false));
+    }
+
+    #[test]
+    fn parse_yes_no_anything_else_is_no() {
+        assert!(!parse_yes_no("n", true));
+        assert!(!parse_yes_no("pfft", true));
+        assert!(!parse_yes_no("42", true));
     }
 }
