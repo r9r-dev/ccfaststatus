@@ -41,23 +41,14 @@ fn estimate_width(kept: &[SegmentRich]) -> usize {
         .sum()
 }
 
+pub mod powerline;
+
 pub fn resolve_skin(name: &str) -> &'static dyn Skin {
     match name {
-        "powerline" => &POWERLINE_STUB,
-        _ => &POWERLINE_STUB,
+        "powerline" => &powerline::POWERLINE,
+        _ => &powerline::POWERLINE,
     }
 }
-
-struct PowerlineStub;
-impl Skin for PowerlineStub {
-    fn name(&self) -> &'static str {
-        "powerline"
-    }
-    fn render(&self, _rows: &SegmentRows, _theme: &Theme, _cols: usize, _suffix: &str) -> String {
-        String::new()
-    }
-}
-static POWERLINE_STUB: PowerlineStub = PowerlineStub;
 
 #[cfg(test)]
 mod tests {
