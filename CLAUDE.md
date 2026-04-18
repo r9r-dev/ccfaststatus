@@ -89,15 +89,13 @@ uncommitted, car la fixture `with_git` pointe le repo lui-même. C'est normal
   pas le rendu terminal — nécessiterait `ansi-to-tui` ou équivalent).
 - `SegmentRich.kind` (enum `SegmentKind`) porte la sémantique ; le skin
   `bullet` pattern-matche dessus pour transformer ctx/cost/limits en
-  ronds colorés. Les autres skins (powerline/minimal/rounded/pipe/rainbow)
-  n'utilisent que `.text` et `.bg`.
-- Phase A a introduit un adapter `to_rich()` dans `render_with` qui
-  convertit `Segment` legacy → `SegmentRich` avec `kind` placeholder.
-  Les segments construits avec placeholder kinds ne rendent PAS en
-  bullet (fallback minimal). Phase C (v0.6) devra construire les
-  kinds réels si bullet doit voir les vraies jauges — aujourd'hui,
-  bullet fonctionne bien seulement si appelé avec SegmentKind correct,
-  ce qui n'est pas le cas depuis render_with.
+  ronds colorés (pct_color vert→jaune→rouge). Les autres skins
+  (powerline/minimal/rounded/pipe/rainbow) n'utilisent que `.text` et `.bg`.
+- `render_with` construit directement des `SegmentRich` avec des kinds
+  réels (Time/Model/Folder/Git/Context/Cost/Limit5h/Limit7d). Powerline
+  adapter convertit SegmentRich → Segment en interne pour réutiliser
+  `build_powerline`. Legacy `Segment` reste défini dans segments.rs
+  pour cet usage et pour les tests existants.
 - Thèmes et skins sont orthogonaux. Défaut `m365princess` + `powerline`
   garantit la rétro-compat pixel-identique avec v0.4.
 

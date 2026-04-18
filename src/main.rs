@@ -26,7 +26,7 @@ use config::{
 };
 use format::{context_bar, fmt_duration, fmt_time, fmt_tokens};
 use input::ClaudeInput;
-use segments::{Segment, SegmentKind, SegmentRich};
+use segments::{SegmentKind, SegmentRich};
 use term::{display_width, fgc, get_cols, strip_ansi, BOLD, DIM, RST};
 
 fn main() {
@@ -112,7 +112,14 @@ pub(crate) fn render_with(data: ClaudeInput, cols: usize, settings: settings::Se
     let (block_pct, time_left, weekly_pct, weekly_left) = rate_limit_data(&data);
 
     // 4. Build segments in JS insertion order.
-    let mut segments: Vec<Segment> = Vec::with_capacity(8);
+    let mut segments: Vec<SegmentRich> = Vec::with_capacity(8);
+    let folder_for_kind = folder.clone();
+    let is_worktree = data.workspace.git_worktree;
+    let git_info_for_kind = git_info.clone();
+    let model_for_kind = model.clone();
+    let ctx_label_for_kind = ctx_label.clone();
+    let time_left_for_kind = time_left.clone();
+    let weekly_left_for_kind = weekly_left.clone();
 
     // 4.0 Time segment (heart + HH:MM + sessions + duration) — priority 5.
     if flags.time {
@@ -137,7 +144,19 @@ pub(crate) fn render_with(data: ClaudeInput, cols: usize, settings: settings::Se
             time_text.push_str(RST);
         }
         time_text.push(' ');
-        segments.push(Segment { text: time_text, bg: palette.bg_time, priority: P_TIME });
+        segments.push(SegmentRich {
+            kind: SegmentKind::Time {
+                hour: now.hour() as u8,
+                minute: now.minute() as u8,
+                sessions: sessions_count,
+                duration_ms: session_ms,
+            },
+            text: time_text,
+            bg: palette.bg_time,
+            fg: palette.tx_white,
+            icon: ICN_HEART,
+            priority: P_TIME,
+        });
     }
 
     // 4.1 Model segment — priority 1 (always visible).
@@ -149,7 +168,14 @@ pub(crate) fn render_with(data: ClaudeInput, cols: usize, settings: settings::Se
         write!(model_text, "{} {}", ICN_MODEL, model).unwrap();
         model_text.push_str(RST);
         model_text.push(' ');
-        segments.push(Segment { text: model_text, bg: palette.bg_model, priority: P_MODEL });
+        segments.push(SegmentRich {
+            kind: SegmentKind::Model(model_for_kind.clone()),
+            text: model_text,
+            bg: palette.bg_model,
+            fg: palette.tx_white,
+            icon: ICN_MODEL,
+            priority: P_MODEL,
+        });
     }
 
     // 4.2 Folder + worktree indicator — priority 4.
@@ -166,7 +192,17 @@ pub(crate) fn render_with(data: ClaudeInput, cols: usize, settings: settings::Se
             folder_text.push_str(RST);
         }
         folder_text.push(' ');
-        segments.push(Segment { text: folder_text, bg: palette.bg_folder, priority: P_FOLDER });
+        segments.push(SegmentRich {
+            kind: SegmentKind::Folder {
+                name: folder_for_kind.clone(),
+                is_worktree,
+            },
+            text: folder_text,
+            bg: palette.bg_folder,
+            fg: palette.tx_white,
+            icon: ICN_FOLDER,
+            priority: P_FOLDER,
+        });
     }
 
     // 4.3 Git segment — priority 3.
@@ -210,7 +246,14 @@ pub(crate) fn render_with(data: ClaudeInput, cols: usize, settings: settings::Se
         git_text.push_str(RST);
         git_text.push_str(&gs);
         git_text.push(' ');
-        segments.push(Segment { text: git_text, bg: palette.bg_git, priority: P_GIT });
+        segments.push(SegmentRich {
+            kind: SegmentKind::Git(git_info_for_kind.clone()),
+            text: git_text,
+            bg: palette.bg_git,
+            fg: palette.tx_dark,
+            icon: ICN_GIT,
+            priority: P_GIT,
+        });
     }
 
     // 4.4 Context segment — priority 2 (critical).
@@ -237,7 +280,18 @@ pub(crate) fn render_with(data: ClaudeInput, cols: usize, settings: settings::Se
         }
         ctx_text.push_str(RST);
         ctx_text.push(' ');
-        segments.push(Segment { text: ctx_text, bg: palette.bg_ctx, priority: P_CTX });
+        segments.push(SegmentRich {
+            kind: SegmentKind::Context {
+                pct: ctx_pct as f64,
+                used_tokens: used_tokens as i64,
+                size_label: ctx_label_for_kind.clone(),
+            },
+            text: ctx_text,
+            bg: palette.bg_ctx,
+            fg: palette.tx_dark,
+            icon: ICN_CTX,
+            priority: P_CTX,
+        });
     }
 
     // 4.5 Rate limits (two segments) OR cost (one segment) — mutually exclusive.
@@ -260,7 +314,17 @@ pub(crate) fn render_with(data: ClaudeInput, cols: usize, settings: settings::Se
                     t.push_str(RST);
                 }
                 t.push(' ');
-                segments.push(Segment { text: t, bg: palette.bg_limit_5h, priority: P_LIMIT_5H });
+                segments.push(SegmentRich {
+                    kind: SegmentKind::Limit5h {
+                        pct,
+                        time_left: time_left_for_kind.clone(),
+                    },
+                    text: t,
+                    bg: palette.bg_limit_5h,
+                    fg: palette.tx_white,
+                    icon: ICN_TIMER,
+                    priority: P_LIMIT_5H,
+                });
             }
         }
         if let Some(pct) = weekly_pct {
@@ -279,7 +343,17 @@ pub(crate) fn render_with(data: ClaudeInput, cols: usize, settings: settings::Se
                     t.push_str(RST);
                 }
                 t.push(' ');
-                segments.push(Segment { text: t, bg: palette.bg_limit_7d, priority: P_LIMIT_7D });
+                segments.push(SegmentRich {
+                    kind: SegmentKind::Limit7d {
+                        pct,
+                        time_left: weekly_left_for_kind.clone(),
+                    },
+                    text: t,
+                    bg: palette.bg_limit_7d,
+                    fg: palette.tx_white,
+                    icon: ICN_CALENDAR,
+                    priority: P_LIMIT_7D,
+                });
             }
         }
     }
@@ -290,7 +364,14 @@ pub(crate) fn render_with(data: ClaudeInput, cols: usize, settings: settings::Se
         write!(t, "{} ${:.2}", ICN_COST, cost_usd).unwrap();
         t.push_str(RST);
         t.push(' ');
-        segments.push(Segment { text: t, bg: palette.bg_limit_7d, priority: P_COST });
+        segments.push(SegmentRich {
+            kind: SegmentKind::Cost(cost_usd),
+            text: t,
+            bg: palette.bg_limit_7d,
+            fg: palette.tx_white,
+            icon: ICN_COST,
+            priority: P_COST,
+        });
     }
 
     // 5. Version suffix (fallback rebuild if too wide).
@@ -307,31 +388,12 @@ pub(crate) fn render_with(data: ClaudeInput, cols: usize, settings: settings::Se
     };
 
     let skin = skins::resolve_skin(&settings.skin);
-    let rich = to_rich(segments.clone());
-    let mut output = skin.render(&vec![rich], palette, cols, &version_suffix);
+    let mut output = skin.render(&vec![segments.clone()], palette, cols, &version_suffix);
     if !version_suffix.is_empty() && display_width(&strip_ansi(&output)) > cols {
-        let rich2 = to_rich(segments);
-        output = skin.render(&vec![rich2], palette, cols, "");
+        output = skin.render(&vec![segments], palette, cols, "");
     }
 
     output
-}
-
-/// Phase A helper : convert legacy Segment to SegmentRich with placeholder
-/// kind. Powerline skin only uses text/bg/priority, so the kind is unused here.
-/// Phase C rewrites render_with to build SegmentRich directly with real kinds.
-fn to_rich(segments: Vec<Segment>) -> Vec<SegmentRich> {
-    segments
-        .into_iter()
-        .map(|s| SegmentRich {
-            kind: SegmentKind::Model(String::new()),
-            text: s.text,
-            bg: s.bg,
-            fg: (0, 0, 0),
-            icon: "",
-            priority: s.priority,
-        })
-        .collect()
 }
 
 /// Shorten the model display name: "Opus 4.7 (1M context)" → "Opus".
@@ -547,6 +609,27 @@ mod tests {
         assert!(output.contains(" · "));
         assert!(output.contains("38;2;189;147;249") || output.contains("48;2;189;147;249"),
             "dracula purple should appear as fg or bg");
+    }
+
+    #[test]
+    fn bullet_skin_shows_gauge_dot_for_context() {
+        let json = r#"{
+            "context_window": {
+                "used_percentage": 42.0,
+                "context_window_size": 200000,
+                "current_usage": {
+                    "input_tokens": 50000,
+                    "cache_creation_input_tokens": 0,
+                    "cache_read_input_tokens": 0
+                }
+            }
+        }"#;
+        let data: ClaudeInput = serde_json::from_str(json).unwrap();
+        let mut s = settings::Settings::default();
+        s.skin = "bullet".to_string();
+        let output = render_with(data, 200, s);
+        assert!(output.contains('\u{25cf}'), "bullet dot for context");
+        assert!(output.contains("42%"));
     }
 
     #[test]
