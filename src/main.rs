@@ -483,4 +483,81 @@ mod tests {
         let output = render_with(data, 200, s);
         assert!(output.contains("48;2;154;52;142"), "fallback m365princess bg_model present");
     }
+
+    #[test]
+    fn render_with_minimal_skin_uses_middot() {
+        let json = include_str!("../tests/fixtures/minimal.json");
+        let data: ClaudeInput = serde_json::from_str(json).unwrap();
+        let mut s = settings::Settings::default();
+        s.skin = "minimal".to_string();
+        let output = render_with(data, 200, s);
+        assert!(output.contains(" · "), "minimal skin uses · separator");
+        assert!(!output.contains('\u{e0b0}'), "no powerline triangle");
+    }
+
+    #[test]
+    fn render_with_pipe_skin_uses_pipe() {
+        let json = include_str!("../tests/fixtures/minimal.json");
+        let data: ClaudeInput = serde_json::from_str(json).unwrap();
+        let mut s = settings::Settings::default();
+        s.skin = "pipe".to_string();
+        let output = render_with(data, 200, s);
+        assert!(output.contains(" | "), "pipe skin uses | separator");
+    }
+
+    #[test]
+    fn render_with_rounded_skin_uses_caps() {
+        let json = include_str!("../tests/fixtures/minimal.json");
+        let data: ClaudeInput = serde_json::from_str(json).unwrap();
+        let mut s = settings::Settings::default();
+        s.skin = "rounded".to_string();
+        let output = render_with(data, 200, s);
+        assert!(output.contains('\u{e0b6}'), "left cap present");
+        assert!(output.contains('\u{e0b4}'), "right cap present");
+    }
+
+    #[test]
+    fn render_with_rainbow_skin_has_prefix() {
+        let json = include_str!("../tests/fixtures/minimal.json");
+        let data: ClaudeInput = serde_json::from_str(json).unwrap();
+        let mut s = settings::Settings::default();
+        s.skin = "rainbow".to_string();
+        let output = render_with(data, 200, s);
+        assert!(output.contains('\u{25a0}'), "rainbow prefix square present");
+    }
+
+    #[test]
+    fn render_unknown_skin_falls_back_to_powerline() {
+        let json = include_str!("../tests/fixtures/minimal.json");
+        let data: ClaudeInput = serde_json::from_str(json).unwrap();
+        let mut s = settings::Settings::default();
+        s.skin = "xyzzy".to_string();
+        let output = render_with(data, 200, s);
+        assert!(output.contains('\u{e0b0}'), "powerline triangle (fallback)");
+    }
+
+    #[test]
+    fn matrix_dracula_minimal() {
+        let json = include_str!("../tests/fixtures/minimal.json");
+        let data: ClaudeInput = serde_json::from_str(json).unwrap();
+        let mut s = settings::Settings::default();
+        s.theme = "dracula".to_string();
+        s.skin = "minimal".to_string();
+        let output = render_with(data, 200, s);
+        assert!(output.contains(" · "));
+        assert!(output.contains("38;2;189;147;249") || output.contains("48;2;189;147;249"),
+            "dracula purple should appear as fg or bg");
+    }
+
+    #[test]
+    fn matrix_nord_rounded() {
+        let json = include_str!("../tests/fixtures/minimal.json");
+        let data: ClaudeInput = serde_json::from_str(json).unwrap();
+        let mut s = settings::Settings::default();
+        s.theme = "nord".to_string();
+        s.skin = "rounded".to_string();
+        let output = render_with(data, 200, s);
+        assert!(output.contains('\u{e0b6}'));
+        assert!(output.contains("48;2;94;129;172"), "nord bg_model present");
+    }
 }
