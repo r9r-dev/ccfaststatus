@@ -1,4 +1,5 @@
 use crate::config::{Rgb, PW};
+use crate::git::GitInfo;
 use crate::term::{bgc, display_width, fgc, strip_ansi, RST};
 
 #[derive(Clone, Debug)]
@@ -7,6 +8,34 @@ pub struct Segment {
     pub bg: Rgb,
     pub priority: u8, // lower = more important
 }
+
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub enum SegmentKind {
+    Time { hour: u8, minute: u8, sessions: usize, duration_ms: u64 },
+    Model(String),
+    Folder { name: String, is_worktree: bool },
+    Git(GitInfo),
+    Context { pct: f64, used_tokens: i64, size_label: String },
+    Cost(f64),
+    Limit5h { pct: i64, time_left: String },
+    Limit7d { pct: i64, time_left: String },
+    Version(String),
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct SegmentRich {
+    pub kind: SegmentKind,
+    pub text: String,
+    pub bg: Rgb,
+    pub fg: Rgb,
+    pub icon: &'static str,
+    pub priority: u8,
+}
+
+#[allow(dead_code)]
+pub type SegmentRows = Vec<Vec<SegmentRich>>;
 
 /// Render consecutive segments with powerline separators, re-injecting each segment's
 /// bg after internal RSTs (so text that uses RST still ends up drawn on the segment bg).
@@ -115,6 +144,28 @@ mod tests {
         let segments = vec![seg(" X ", (10, 10, 10), 7)];
         let out = build_powerline(segments, "", 2);
         assert!(out.contains("X"));
+    }
+
+    #[test]
+    fn segment_kind_time_constructible() {
+        let k = SegmentKind::Time { hour: 10, minute: 30, sessions: 2, duration_ms: 600_000 };
+        match k {
+            SegmentKind::Time { hour, .. } => assert_eq!(hour, 10),
+            _ => panic!("wrong variant"),
+        }
+    }
+
+    #[test]
+    fn segment_rich_constructible() {
+        let s = SegmentRich {
+            kind: SegmentKind::Cost(0.42),
+            text: "$0.42".to_string(),
+            bg: (0, 0, 0),
+            fg: (255, 255, 255),
+            icon: "$",
+            priority: 6,
+        };
+        assert_eq!(s.priority, 6);
     }
 
     #[test]
