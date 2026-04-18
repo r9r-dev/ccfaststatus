@@ -1,9 +1,54 @@
+use crate::term::{BOLD, RST};
 use serde_json::{json, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
 
 pub fn run() {
-    println!("install stub");
+    if let Err(e) = run_inner() {
+        eprintln!("ccfaststatus: {}", e);
+        std::process::exit(1);
+    }
+}
+
+fn run_inner() -> Result<(), String> {
+    let path = settings_path()?;
+    let current = read_settings(&path)?;
+    let already = is_already_configured(&current);
+
+    if already {
+        println!("{}ccfaststatus est déjà configurée.{}", BOLD, RST);
+    } else {
+        println!("{}Status Line non configurée. Installation…{}", BOLD, RST);
+    }
+
+    let default_interval = current
+        .get("statusLine")
+        .and_then(|s| s.get("refreshInterval"))
+        .and_then(|n| n.as_u64())
+        .map(|n| n as u32)
+        .unwrap_or(1);
+
+    let interval = prompt_interval(default_interval);
+    let updated = update_settings(current, interval);
+    write_settings(&path, &updated)?;
+
+    // Round-trip verification
+    let verify = read_settings(&path)?;
+    if !is_already_configured(&verify) {
+        return Err("round-trip verification failed".to_string());
+    }
+
+    if already {
+        println!("Mis à jour.");
+    } else {
+        println!("Status Line installée. Redémarre Claude Code.");
+    }
+
+    println!();
+    println!("Aperçu :");
+    println!("{}", preview());
+
+    Ok(())
 }
 
 pub fn settings_path() -> Result<PathBuf, String> {
@@ -66,8 +111,8 @@ pub fn parse_interval(raw: &str, default: u32) -> Result<u32, String> {
         return Ok(default);
     }
     t.parse::<u32>()
-        .map_err(|_| format!("not a positive integer: {}", raw.trim()))
-        .and_then(|n| if n == 0 { Err("must be > 0".to_string()) } else { Ok(n) })
+        .map_err(|_| format!("entier positif attendu : {}", raw.trim()))
+        .and_then(|n| if n == 0 { Err("doit être > 0".to_string()) } else { Ok(n) })
 }
 
 fn prompt_interval(default: u32) -> u32 {
