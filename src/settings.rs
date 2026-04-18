@@ -45,6 +45,39 @@ pub struct Settings {
     pub segments: SegmentFlags,
 }
 
+impl Settings {
+    pub fn parse_toml(s: &str) -> Result<Self, String> {
+        let value: toml::Value = s
+            .parse()
+            .map_err(|e: toml::de::Error| format!("TOML invalide : {}", e))?;
+
+        let mut settings = Settings::default();
+
+        if let Some(segs) = value.get("segments").and_then(|v| v.as_table()) {
+            let get = |k: &str, d: bool| segs.get(k).and_then(|v| v.as_bool()).unwrap_or(d);
+            settings.segments = SegmentFlags {
+                time:    get("time",    true),
+                model:   get("model",   true),
+                folder:  get("folder",  true),
+                git:     get("git",     true),
+                context: get("context", true),
+                cost:    get("cost",    true),
+                limits:  get("limits",  true),
+                version: get("version", true),
+            };
+        }
+
+        let f = &settings.segments;
+        if !f.time && !f.model && !f.folder && !f.git
+            && !f.context && !f.cost && !f.limits && !f.version
+        {
+            settings.segments.model = true;
+        }
+
+        Ok(settings)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -89,5 +122,82 @@ mod tests {
             Some(v) => std::env::set_var("HOME", v),
             None => std::env::remove_var("HOME"),
         }
+    }
+
+    #[test]
+    fn parse_empty_toml_returns_defaults() {
+        let s = Settings::parse_toml("").unwrap();
+        assert_eq!(s, Settings::default());
+    }
+
+    #[test]
+    fn parse_full_config() {
+        let t = r#"
+[segments]
+time    = false
+model   = true
+folder  = false
+git     = true
+context = true
+cost    = false
+limits  = true
+version = false
+"#;
+        let s = Settings::parse_toml(t).unwrap();
+        assert!(!s.segments.time);
+        assert!(s.segments.model);
+        assert!(!s.segments.folder);
+        assert!(s.segments.git);
+        assert!(!s.segments.cost);
+        assert!(!s.segments.version);
+    }
+
+    #[test]
+    fn parse_partial_config_keeps_defaults_for_missing_keys() {
+        let t = r#"
+[segments]
+git = false
+"#;
+        let s = Settings::parse_toml(t).unwrap();
+        assert!(!s.segments.git, "git explicitly disabled");
+        assert!(s.segments.time, "time keeps default true");
+        assert!(s.segments.model, "model keeps default true");
+    }
+
+    #[test]
+    fn parse_unknown_keys_are_ignored() {
+        let t = r#"
+[segments]
+git = false
+future_segment = true
+
+[future_section]
+key = "value"
+"#;
+        let s = Settings::parse_toml(t).unwrap();
+        assert!(!s.segments.git);
+    }
+
+    #[test]
+    fn parse_malformed_toml_returns_err() {
+        let t = "[[[ not valid";
+        assert!(Settings::parse_toml(t).is_err());
+    }
+
+    #[test]
+    fn all_flags_false_forces_model_true() {
+        let t = r#"
+[segments]
+time = false
+model = false
+folder = false
+git = false
+context = false
+cost = false
+limits = false
+version = false
+"#;
+        let s = Settings::parse_toml(t).unwrap();
+        assert!(s.segments.model, "model forcé à true si tout est désactivé");
     }
 }
