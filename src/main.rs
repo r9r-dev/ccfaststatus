@@ -7,6 +7,7 @@ mod segments;
 mod sessions;
 mod settings;
 mod term;
+mod theme;
 mod tui;
 
 use std::fmt::Write as _;
