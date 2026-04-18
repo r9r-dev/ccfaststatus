@@ -21,11 +21,16 @@ src/
   segments.rs   -- Segment + build_powerline (troncature par priorité)
   sessions.rs   -- comptage processus "claude" via FFI native (libc proc_listpids + sysctl)
   git.rs        -- git2 + cache binaire bincode (TTL 5 s)
-  settings.rs   -- config utilisateur TOML : Settings, SegmentFlags, load/save,
+  settings.rs   -- config utilisateur TOML : Settings, SegmentFlags, theme, skin,
                    config_path (XDG + HOME fallback), garde-fou all-false→model=true
+  theme.rs      -- 6 palettes en const (m365princess, catppuccin, tokyo-night,
+                   gruvbox, nord, dracula), resolve_theme(name) avec fallback
+  skins/
+    mod.rs      -- trait Skin + fit_segments (troncature priorité partagée) + resolve_skin
+    powerline.rs, minimal.rs, rounded.rs, pipe.rs, rainbow.rs, bullet.rs
   tui/
     mod.rs      -- event loop ratatui + alt screen, retourne Option<Settings>
-    state.rs    -- App + ALL_SEGMENTS (data-driven pour v0.5)
+    state.rs    -- App + ALL_SEGMENTS + ALL_THEMES + ALL_SKIN_NAMES (data-driven)
     events.rs   -- handle_key (testable sans terminal)
     ui.rs       -- draw : 3 panneaux (categories / options / preview)
 tests/
@@ -79,8 +84,22 @@ uncommitted, car la fixture `with_git` pointe le repo lui-même. C'est normal
   malformé → défauts + warning stderr. Cohérent avec le hot path.
 - `ALL_SEGMENTS` dans `tui::state` est la source de vérité data-driven :
   ajouter un segment en v0.5 = ajouter une entrée, la TUI s'adapte.
-- Preview TUI v0.3 : texte brut (strip_ansi). L'affichage ANSI coloré
-  en preview est reporté à v0.4 avec les thèmes.
+- Preview TUI v0.3+ : texte brut (strip_ansi). L'affichage ANSI coloré
+  en preview reste reporté (les thèmes/skins modifient le format mais
+  pas le rendu terminal — nécessiterait `ansi-to-tui` ou équivalent).
+- `SegmentRich.kind` (enum `SegmentKind`) porte la sémantique ; le skin
+  `bullet` pattern-matche dessus pour transformer ctx/cost/limits en
+  ronds colorés. Les autres skins (powerline/minimal/rounded/pipe/rainbow)
+  n'utilisent que `.text` et `.bg`.
+- Phase A a introduit un adapter `to_rich()` dans `render_with` qui
+  convertit `Segment` legacy → `SegmentRich` avec `kind` placeholder.
+  Les segments construits avec placeholder kinds ne rendent PAS en
+  bullet (fallback minimal). Phase C (v0.6) devra construire les
+  kinds réels si bullet doit voir les vraies jauges — aujourd'hui,
+  bullet fonctionne bien seulement si appelé avec SegmentKind correct,
+  ce qui n'est pas le cas depuis render_with.
+- Thèmes et skins sont orthogonaux. Défaut `m365princess` + `powerline`
+  garantit la rétro-compat pixel-identique avec v0.4.
 
 ## Homebrew tap
 

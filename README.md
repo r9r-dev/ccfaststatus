@@ -65,6 +65,44 @@ version = true
 
 Une clé absente conserve sa valeur par défaut (`true`). Si tous les segments sont à `false`, `model` est forcé à `true` pour éviter un rendu vide.
 
+### Thèmes
+
+6 palettes disponibles :
+
+| Nom | Vibe |
+|---|---|
+| `m365princess` | pastel plum/blush/salmon (défaut) |
+| `catppuccin` | mocha, pastel chaud |
+| `tokyo-night` | sombre bleuté |
+| `gruvbox` | retro warm |
+| `nord` | cool blues |
+| `dracula` | violet/rose saturé |
+
+```toml
+[theme]
+name = "dracula"
+```
+
+### Skins
+
+6 formes de rendu :
+
+| Skin | Paradigme |
+|---|---|
+| `powerline` | triangles pleins (défaut) |
+| `minimal` | séparateur ` · `, pas de bg |
+| `rounded` | extrémités arrondies |
+| `pipe` | séparateur ` \| ` |
+| `rainbow` | préfixe arc-en-ciel + style minimal |
+| `bullet` | ronds colorés pour les jauges |
+
+```toml
+[skin]
+name = "bullet"
+```
+
+Thèmes et skins sont **orthogonaux** : `tokyo-night` + `bullet` est valide. Nom inconnu → fallback défaut.
+
 ## Tests
 
 ```sh
