@@ -38,17 +38,23 @@ ln -sf "$PWD/target/release/ccfaststatus" ~/.local/bin/ccfaststatus
 Le premier build compile `libgit2` statiquement (~60-120 s). Les builds suivants
 sont quasi-instantanés (LTO `fat` + `codegen-units = 1`).
 
-Puis dans `~/.claude/settings.json` :
+## Configuration
 
-```json
-{
-  "statusLine": {
-    "type": "command",
-    "command": "ccfaststatus",
-    "refreshInterval": 3
-  }
-}
+Après installation, lance `ccfaststatus` depuis un terminal pour configurer
+interactivement `~/.claude/settings.json` :
+
+```sh
+ccfaststatus
 ```
+
+Deux prompts :
+
+1. Si la Status Line n'est pas encore configurée, elle sera installée.
+2. L'intervalle de rafraîchissement en secondes (défaut : 1, le minimum
+   autorisé par Claude Code).
+
+Un aperçu de la Status Line est affiché à la fin pour valider visuellement
+que tout fonctionne. Redémarre Claude Code après configuration.
 
 ## Tests
 
