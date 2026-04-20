@@ -30,6 +30,10 @@ use segments::{SegmentKind, SegmentRich};
 use term::{display_width, fgc, get_cols, strip_ansi, BOLD, DIM, RST};
 
 fn main() {
+    if std::env::args().any(|a| a == "--post-install") {
+        install::post_install();
+        return;
+    }
     if std::io::stdin().is_terminal() {
         install::run();
         return;
